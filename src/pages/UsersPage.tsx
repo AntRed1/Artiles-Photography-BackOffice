@@ -18,24 +18,28 @@ const UsersPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Gestión de Usuarios y Roles</h1>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
-        >
-          Agregar Usuario
-        </button>
-      </div>
-      <UserList onEdit={handleOpenModal} />
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <UserForm user={selectedUser} onClose={handleCloseModal} />
-          </div>
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">
+            Gestión de Usuarios y Roles
+          </h1>
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition duration-200"
+          >
+            Agregar Usuario
+          </button>
         </div>
-      )}
+        <UserList onEdit={handleOpenModal} />
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+              <UserForm user={selectedUser} onClose={handleCloseModal} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

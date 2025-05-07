@@ -1,23 +1,10 @@
 import environment from "../environments/environment";
 
-/**
- * Genera los encabezados de autenticación para las peticiones.
- */
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${localStorage.getItem("jwt")}`,
 });
 
-/**
- * Función general para realizar peticiones a la API.
- *
- * @template T Tipo esperado en la respuesta.
- * @param endpoint Ruta relativa al backend (sin `/api` si ya está en `apiUrl`).
- * @param method Método HTTP (por defecto "GET").
- * @param body Cuerpo de la solicitud, si aplica.
- * @returns Respuesta parseada como tipo T.
- * @throws Error si la respuesta no es exitosa.
- */
 const api = async <T>(
   endpoint: string,
   method: string = "GET",
@@ -32,8 +19,14 @@ const api = async <T>(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API error: ${response.status} ${error}`);
+    let errorMessage = `API error: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      errorMessage = await response.text();
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();

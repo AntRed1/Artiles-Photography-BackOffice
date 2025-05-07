@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -24,10 +23,14 @@ const LoginPage: React.FC = () => {
         type: "success",
         message: "Sesión iniciada correctamente",
       });
-    } catch (_error) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error && error.message === "La cuenta está desactivada"
+          ? "Tu cuenta está desactivada. Contacta al administrador."
+          : "Correo o contraseña incorrectos.";
       setAlert({
         type: "error",
-        message: "Credenciales inválidas",
+        message: errorMessage,
       });
       setLoading(false);
     }
@@ -106,12 +109,10 @@ const LoginPage: React.FC = () => {
           <div
             role="alert"
             aria-live="assertive"
-            className={`${
+            className={`p-4 mb-4 rounded-lg flex items-center space-x-3 transition-all duration-500 ease-in-out ${
               alert.type === "success"
                 ? "bg-green-100 text-green-700"
                 : "bg-red-100 text-red-700"
-            } p-4 mb-4 rounded-lg flex items-center space-x-3 transition-all duration-500 ease-in-out animate__animated ${
-              alert.type === "success" ? "animate__fadeIn" : "animate__fadeOut"
             }`}
           >
             {renderAlertIcon()}
