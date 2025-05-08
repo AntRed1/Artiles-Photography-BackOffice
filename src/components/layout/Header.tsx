@@ -1,10 +1,20 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+// Mapa para roles legibles
+const roleDisplayMap: Record<string, string> = {
+  ROLE_ADMIN: "Administrador",
+  ROLE_EDITOR: "Editor",
+  ROLE_VISUALIZADOR: "Visualizador",
+  ROLE_USER: "Usuario",
+};
 
 const Header: React.FC = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const notifications = [
     {
@@ -29,6 +39,19 @@ const Header: React.FC = () => {
       color: "amber",
     },
   ];
+
+  // Obtener el nombre legible del rol
+  const getDisplayRole = (role?: string): string => {
+    if (!role) return "Usuario";
+    // Remover prefijo ROLE_ si existe
+    const normalizedRole = role.startsWith("ROLE_") ? role : `ROLE_${role}`;
+    return roleDisplayMap[normalizedRole] || role;
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <header className="bg-white shadow-sm">
@@ -100,14 +123,14 @@ const Header: React.FC = () => {
               onClick={() => setUserDropdownOpen(!userDropdownOpen)}
             >
               <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-medium">
-                {user?.name.charAt(0) || "CR"}
+                {user?.name?.charAt(0) || "U"}
               </div>
               <div className="hidden md:block text-left">
                 <div className="text-sm font-medium">
-                  {user?.name || "Carlos Rodríguez"}
+                  {user?.name || "Usuario"}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {user?.role || "Administrador"}
+                  {getDisplayRole(user?.roles?.[0])}
                 </div>
               </div>
               <i className="fas fa-chevron-down text-gray-500 text-xs"></i>
@@ -116,24 +139,24 @@ const Header: React.FC = () => {
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10">
                 <div className="py-1">
                   <a
-                    href="#"
+                    href="/settings"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Mi Perfil
                   </a>
                   <a
-                    href="#"
+                    href="/settings"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Configuración
                   </a>
                   <div className="border-t border-gray-100"></div>
-                  <a
-                    href="#"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Cerrar Sesión
-                  </a>
+                  </button>
                 </div>
               </div>
             )}

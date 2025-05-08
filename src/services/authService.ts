@@ -2,10 +2,9 @@ import api from "./api";
 
 export interface AuthResponse {
   token: string;
-  user: {
-    name: string;
-    role: string;
-  };
+  name: string;
+  email: string;
+  roles: string[];
 }
 
 export const login = async (credentials: {

@@ -24,7 +24,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.getItem("jwt")
   );
 
-  const user = useMemo(() => (token ? decodeJwt() : null), [token]);
+  const user = useMemo(() => {
+    const decoded = decodeJwt();
+    if (decoded && token) {
+      // Asegura que el nombre esté disponible
+      return { ...decoded, name: decoded.name || "Usuario" };
+    }
+    return null;
+  }, [token]);
+
   const isAdmin = useMemo(() => hasAdminRole(user), [user]);
   const isAuthenticated = !!user;
 

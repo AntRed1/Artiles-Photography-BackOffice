@@ -7,7 +7,7 @@ export const createUser = (user: {
   name: string;
   email: string;
   password: string;
-  role: string;
+  roles: string[];
   enabled: boolean;
 }): Promise<User> => api("/admin/users", "POST", user);
 
@@ -17,7 +17,7 @@ export const updateUser = (
     name?: string;
     email?: string;
     password?: string;
-    role?: string;
+    roles?: string[];
     enabled?: boolean;
   }
 ): Promise<User> => api(`/admin/users/${id}`, "PUT", user);
