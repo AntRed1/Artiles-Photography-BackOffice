@@ -12,7 +12,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
     name: user?.name || "",
     email: user?.email || "",
     password: "",
-    roles: user?.roles || ["VISUALIZADOR"],
+    role: user?.roles?.[0] || "Visualizador",
     enabled: user?.enabled !== undefined ? user.enabled : true,
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -20,7 +20,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
     null
   );
 
-  const availableRoles = ["ADMIN", "EDITOR", "VISUALIZADOR", "USER"];
+  const availableRoles = ["Administrador", "Editor", "Visualizador", "Usuario"];
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -28,8 +28,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
     if (!formData.email) newErrors.email = "El email es obligatorio";
     if (!user && !formData.password)
       newErrors.password = "La contraseña es obligatoria";
-    if (!formData.roles.length)
-      newErrors.roles = "Debe seleccionar al menos un rol";
+    if (!formData.role) newErrors.role = "Debe seleccionar un rol";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -44,7 +43,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
           name: formData.name,
           email: formData.email,
           password: formData.password || undefined,
-          roles: formData.roles,
+          role: formData.role,
           enabled: formData.enabled,
         });
         setAlert({
@@ -56,7 +55,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          roles: formData.roles,
+          role: formData.role,
           enabled: formData.enabled,
         });
         setAlert({ type: "success", message: "Usuario creado correctamente" });
@@ -70,15 +69,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
         }`,
       });
     }
-  };
-
-  const handleRoleToggle = (role: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      roles: prev.roles.includes(role)
-        ? prev.roles.filter((r) => r !== role)
-        : [...prev.roles, role],
-    }));
   };
 
   return (
@@ -152,32 +142,23 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
           )}
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">
-            Roles
-          </label>
-          <div className="flex flex-wrap gap-2">
+          <label className="block text-sm font-medium text-gray-700">Rol</label>
+          <select
+            value={formData.role}
+            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+            className={`mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+              errors.role ? "border-red-500" : "border-gray-300"
+            }`}
+          >
+            <option value="">Seleccionar rol</option>
             {availableRoles.map((role) => (
-              <label key={role} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={formData.roles.includes(role)}
-                  onChange={() => handleRoleToggle(role)}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <span className="text-sm">
-                  {role === "ADMIN"
-                    ? "Administrador"
-                    : role === "EDITOR"
-                    ? "Editor"
-                    : role === "VISUALIZADOR"
-                    ? "Visualizador"
-                    : "Usuario"}
-                </span>
-              </label>
+              <option key={role} value={role}>
+                {role}
+              </option>
             ))}
-          </div>
-          {errors.roles && (
-            <p className="text-red-500 text-xs mt-1">{errors.roles}</p>
+          </select>
+          {errors.role && (
+            <p className="text-red-500 text-xs mt-1">{errors.role}</p>
           )}
         </div>
         <div className="mb-4">

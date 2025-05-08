@@ -9,7 +9,9 @@ const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [alert, setAlert] = useState<{ type: string; message: string } | null>(null);
+  const [alert, setAlert] = useState<{ type: string; message: string } | null>(
+    null
+  );
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -33,7 +35,7 @@ const RegisterPage: React.FC = () => {
         type: "success",
         message: "Registro completado. Redirigiendo al login...",
       });
-    } catch (_error) {
+    } catch (error) {
       setAlert({
         type: "error",
         message: "No se pudo completar el registro",
@@ -140,6 +142,7 @@ const RegisterPage: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="Tu nombre"
               required
+              autoComplete="name"
             />
           </div>
           <div>
@@ -153,6 +156,7 @@ const RegisterPage: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="correo@ejemplo.com"
               required
+              autoComplete="email"
             />
           </div>
           <div>
@@ -166,6 +170,7 @@ const RegisterPage: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="••••••••"
               required
+              autoComplete="new-password"
             />
           </div>
           <div>
@@ -179,6 +184,7 @@ const RegisterPage: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="••••••••"
               required
+              autoComplete="new-password"
             />
           </div>
           <button

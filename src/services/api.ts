@@ -29,6 +29,11 @@ const api = async <T>(
     throw new Error(errorMessage);
   }
 
+  // Handle 204 No Content responses
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 };
 

@@ -1,10 +1,15 @@
-/* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { login, register } from "../services/authService";
+import React, { createContext, useContext, useMemo, useState } from "react";
+import { decodeJwt, type JwtPayload, hasAdminRole } from "../utils/jwt";
+import {
+  login as loginService,
+  register as registerService,
+  type AuthResponse,
+} from "../services/authService";
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: { name: string; role: string } | null;
+  user: JwtPayload | null;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -15,63 +20,57 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
-
-  useEffect(() => {
-    const token = localStorage.getItem("jwt");
-    const storedUser = localStorage.getItem("user");
-
-    if (token && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setIsAuthenticated(true);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error("Error parsing user from localStorage:", error);
-        localStorage.removeItem("user");
-      }
-    }
-  }, []);
-
-  const handleLogin = async (email: string, password: string) => {
-    const response = await login({ email, password });
-    localStorage.setItem("jwt", response.token);
-    localStorage.setItem("user", JSON.stringify(response.user));
-    setIsAuthenticated(true);
-    setUser(response.user);
-  };
-
-  const handleRegister = async (
-    name: string,
-    email: string,
-    password: string
-  ) => {
-    await register({ name, email, password });
-    // No autenticamos al usuario ni guardamos el token/user en localStorage
-    // El usuario debe iniciar sesión manualmente después del registro
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("jwt");
-    localStorage.removeItem("user");
-    setIsAuthenticated(false);
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        user,
-        login: handleLogin,
-        register: handleRegister,
-        logout: handleLogout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem("jwt")
   );
+
+  const user = useMemo(() => (token ? decodeJwt() : null), [token]);
+  const isAdmin = useMemo(() => hasAdminRole(user), [user]);
+  const isAuthenticated = !!user;
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response: AuthResponse = await loginService({ email, password });
+      localStorage.setItem("jwt", response.token);
+      setToken(response.token);
+    } catch (error) {
+      throw new Error(
+        error instanceof Error ? error.message : "Error al iniciar sesión"
+      );
+    }
+  };
+
+  const register = async (name: string, email: string, password: string) => {
+    try {
+      const response: AuthResponse = await registerService({
+        name,
+        email,
+        password,
+      });
+      localStorage.setItem("jwt", response.token);
+      setToken(response.token);
+    } catch (error) {
+      throw new Error(
+        error instanceof Error ? error.message : "Error al registrarse"
+      );
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("jwt");
+    setToken(null);
+  };
+
+  const value: AuthContextType = {
+    isAuthenticated,
+    user,
+    isAdmin,
+    login,
+    register,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

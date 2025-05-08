@@ -1,11 +1,19 @@
 import React, { useState } from "react";
+import { Navigate } from "react-router-dom";
 import UserList from "../components/users/UserList";
 import UserForm from "../components/users/UserForm";
 import type { User } from "../types/user";
+import { useAuth } from "../context/AuthContext";
 
 const UsersPage: React.FC = () => {
+  const { isAuthenticated, isAdmin } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Redirigir a una página de no autorizado si no está autenticado o no es admin
+  if (!isAuthenticated || !isAdmin) {
+    return <Navigate to="/unauthorized" replace />;
+  }
 
   const handleOpenModal = (user: User | null = null) => {
     setSelectedUser(user);
@@ -27,6 +35,7 @@ const UsersPage: React.FC = () => {
           <button
             onClick={() => handleOpenModal()}
             className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition duration-200"
+            aria-label="Agregar nuevo usuario"
           >
             Agregar Usuario
           </button>

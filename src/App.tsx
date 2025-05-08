@@ -11,13 +11,24 @@ import TestimonialsPage from "./pages/TestimonialsPage";
 import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
 
-// Componente para proteger las rutas que requieren autenticación
-const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+// Componente para proteger las rutas que requieren autenticación y, opcionalmente, rol de administrador
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  requireAdmin?: boolean;
+}> = ({ children, requireAdmin = false }) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 const App: React.FC = () => {
@@ -26,10 +37,11 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route
           path="/*"
           element={
-            <PrivateRoute>
+            <ProtectedRoute>
               <div className="min-h-screen bg-gray-100 flex">
                 <Sidebar />
                 <div className="flex-1 flex flex-col min-h-screen">
@@ -37,7 +49,14 @@ const App: React.FC = () => {
                   <main className="flex-1 overflow-y-auto bg-gray-100">
                     <Routes>
                       <Route path="/" element={<DashboardPage />} />
-                      <Route path="/users" element={<UsersPage />} />
+                      <Route
+                        path="/users"
+                        element={
+                          <ProtectedRoute requireAdmin>
+                            <UsersPage />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route path="/gallery" element={<GalleryPage />} />
                       <Route path="/packages" element={<PackagesPage />} />
                       <Route
@@ -49,7 +68,7 @@ const App: React.FC = () => {
                   </main>
                 </div>
               </div>
-            </PrivateRoute>
+            </ProtectedRoute>
           }
         />
       </Routes>

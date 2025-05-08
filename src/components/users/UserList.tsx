@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { getUsers, deleteUser } from "../../services/userService";
 import type { User } from "../../types/user";
+import { useAuth } from "../../context/AuthContext";
 
 interface UserListProps {
   onEdit: (user: User | null) => void;
 }
 
 const UserList: React.FC<UserListProps> = ({ onEdit }) => {
+  const { isAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -147,7 +149,7 @@ const UserList: React.FC<UserListProps> = ({ onEdit }) => {
         </div>
       )}
 
-      {showDeleteModal && (
+      {showDeleteModal && isAdmin && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">
@@ -300,24 +302,28 @@ const UserList: React.FC<UserListProps> = ({ onEdit }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      onClick={() => onEdit(user)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      title="Editar"
-                    >
-                      <i className="fas fa-edit"></i>
-                    </button>
-                    <button
-                      onClick={() =>
-                        setShowDeleteModal({ id: user.id, name: user.name })
-                      }
-                      className="text-red-600 hover:text-red-900"
-                      title="Eliminar"
-                    >
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={() => onEdit(user)}
+                        className="text-indigo-600 hover:text-indigo-900"
+                        title="Editar"
+                        aria-label={`Editar usuario ${user.name}`}
+                      >
+                        <i className="fas fa-edit"></i>
+                      </button>
+                      <button
+                        onClick={() =>
+                          setShowDeleteModal({ id: user.id, name: user.name })
+                        }
+                        className="text-red-600 hover:text-red-900"
+                        title="Eliminar"
+                        aria-label={`Eliminar usuario ${user.name}`}
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
