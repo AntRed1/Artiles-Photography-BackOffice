@@ -5,6 +5,7 @@ interface GalleryResponse {
   id: number;
   url: string;
   title: string;
+  description: string;
   order: number;
 }
 
@@ -22,11 +23,13 @@ export const uploadImage = async (
   type: "carousel" | "gallery",
   file: File,
   title: string,
+  description: string,
   order: number
 ): Promise<GalleryItem> => {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", title);
+  formData.append("description", description);
   formData.append("order", order.toString());
   const endpoint =
     type === "carousel" ? "/carousel/upload" : "/admin/gallery/upload";
@@ -37,7 +40,7 @@ export const uploadImage = async (
 export const updateImage = async (
   type: "carousel" | "gallery",
   id: number,
-  data: { title: string; order: number }
+  data: { title: string; description: string; order: number }
 ): Promise<GalleryItem> => {
   const endpoint =
     type === "carousel" ? `/carousel/${id}` : `/admin/gallery/${id}`;

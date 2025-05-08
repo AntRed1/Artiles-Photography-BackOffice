@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import type { Testimonial } from "../types/testimonial";
 import {
@@ -92,7 +93,7 @@ const TestimonialsPage: React.FC = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Testimonios</h1>
+        <h1 className="text-2xl font-bold"></h1>
         <button
           onClick={() => setModalOpen(true)}
           className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"

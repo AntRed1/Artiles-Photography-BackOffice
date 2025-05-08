@@ -64,8 +64,9 @@ const Header: React.FC = () => {
           {window.location.pathname === "/users" &&
             "Gestión de Usuarios y Roles"}
           {window.location.pathname === "/gallery" && "Gestión de Contenido"}
-          {window.location.pathname === "/packages" && "Paquetes Fotográficos"}
-          {window.location.pathname === "/testimonials" && "Testimonios"}
+          {window.location.pathname === "/packages" &&
+            "Gestion de Paquetes Fotográficos"}
+          {window.location.pathname === "/testimonials" && "Gestión de Testimonios"}
           {window.location.pathname === "/settings" && "Configuración General"}
         </div>
         <div className="flex items-center space-x-4">

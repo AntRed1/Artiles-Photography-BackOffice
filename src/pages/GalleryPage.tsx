@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import type { GalleryItem } from "../types/gallery";
 import {
@@ -19,8 +20,9 @@ const GalleryPage: React.FC = () => {
     id?: number;
     file?: File;
     title: string;
+    description: string;
     order: number;
-  }>({ type: "carousel", title: "", order: 0 });
+  }>({ type: "carousel", title: "", description: "", order: 0 });
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -48,6 +50,7 @@ const GalleryPage: React.FC = () => {
       if (formData.id) {
         await updateImage(formData.type, formData.id, {
           title: formData.title,
+          description: formData.description,
           order: formData.order,
         });
       } else if (formData.file) {
@@ -55,6 +58,7 @@ const GalleryPage: React.FC = () => {
           formData.type,
           formData.file,
           formData.title,
+          formData.description,
           formData.order
         );
       }
@@ -65,7 +69,7 @@ const GalleryPage: React.FC = () => {
       setCarouselImages(carousel);
       setGalleryImages(gallery);
       setModalOpen(false);
-      setFormData({ type: "carousel", title: "", order: 0 });
+      setFormData({ type: "carousel", title: "", description: "", order: 0 });
     } catch (err) {
       setError("Error al guardar imagen");
     } finally {
@@ -93,7 +97,7 @@ const GalleryPage: React.FC = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestión de Contenido</h1>
+        <h1 className="text-2xl font-bold"></h1>
         <button
           onClick={() => setModalOpen(true)}
           className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
@@ -130,6 +134,7 @@ const GalleryPage: React.FC = () => {
                         type: "carousel",
                         id: image.id,
                         title: image.title,
+                        description: image.description,
                         order: image.order,
                       })
                     }
@@ -186,6 +191,7 @@ const GalleryPage: React.FC = () => {
                         type: "gallery",
                         id: image.id,
                         title: image.title,
+                        description: image.description,
                         order: image.order,
                       })
                     }
@@ -276,6 +282,19 @@ const GalleryPage: React.FC = () => {
                   }
                   className="border border-gray-300 rounded-lg w-full p-2 text-sm"
                 />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700">
+                  Descripción
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
+                  rows={4}
+                ></textarea>
               </div>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700">

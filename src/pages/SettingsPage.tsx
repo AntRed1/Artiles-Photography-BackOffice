@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import type { Config } from "../types/config";
 import {
@@ -62,7 +63,6 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Configuración General</h1>
       {loading && (
         <div className="text-center">
           <i className="fas fa-spinner animate-spin text-2xl"></i>
