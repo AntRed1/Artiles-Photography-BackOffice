@@ -13,6 +13,7 @@ const roleDisplayMap: Record<string, string> = {
 const Header: React.FC = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -43,14 +44,16 @@ const Header: React.FC = () => {
   // Obtener el nombre legible del rol
   const getDisplayRole = (role?: string): string => {
     if (!role) return "Usuario";
-    // Remover prefijo ROLE_ si existe
     const normalizedRole = role.startsWith("ROLE_") ? role : `ROLE_${role}`;
     return roleDisplayMap[normalizedRole] || role;
   };
 
   const handleLogout = () => {
-    logout();
-    navigate("/login");
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      logout();
+      navigate("/login");
+    }, 500); // Duración de la animación
   };
 
   return (
@@ -136,7 +139,11 @@ const Header: React.FC = () => {
               <i className="fas fa-chevron-down text-gray-500 text-xs"></i>
             </button>
             {userDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10">
+              <div
+                className={`absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10 transition-opacity duration-300 ${
+                  isLoggingOut ? "opacity-50" : "opacity-100"
+                }`}
+              >
                 <div className="py-1">
                   <a
                     href="/settings"
@@ -153,8 +160,14 @@ const Header: React.FC = () => {
                   <div className="border-t border-gray-100"></div>
                   <button
                     onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    disabled={isLoggingOut}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 flex items-center"
                   >
+                    <i
+                      className={`fas fa-sign-out-alt mr-2 ${
+                        isLoggingOut ? "animate-spin" : ""
+                      }`}
+                    ></i>
                     Cerrar Sesión
                   </button>
                 </div>

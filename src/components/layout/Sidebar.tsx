@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { logout } = useAuth();
 
   const menuItems = [
@@ -14,6 +15,14 @@ const Sidebar: React.FC = () => {
     { path: "/testimonials", icon: "fa-comment-alt", label: "Testimonios" },
     { path: "/settings", icon: "fa-cog", label: "Configuración" },
   ];
+
+  const handleLogout = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      logout();
+      window.location.href = "/login"; // Usamos window.location.href para consistencia
+    }, 500);
+  };
 
   return (
     <div
@@ -75,14 +84,21 @@ const Sidebar: React.FC = () => {
       <div
         className={`p-4 border-t border-indigo-700 ${
           collapsed ? "text-center" : ""
+        } transition-opacity duration-300 ${
+          isLoggingOut ? "opacity-50" : "opacity-100"
         }`}
       >
         <button
-          className="text-white hover:bg-indigo-700 p-2 rounded-lg w-full flex items-center justify-center"
-          onClick={logout}
+          className="text-white hover:bg-indigo-700 p-2 rounded-lg w-full flex items-center justify-center disabled:opacity-50"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
         >
-          <i className="fas fa-sign-out-alt"></i>
-          {!collapsed && <span className="ml-2">Cerrar Sesión</span>}
+          <i
+            className={`fas fa-sign-out-alt ${collapsed ? "" : "mr-2"} ${
+              isLoggingOut ? "animate-spin" : ""
+            }`}
+          ></i>
+          {!collapsed && <span>Cerrar Sesión</span>}
         </button>
       </div>
     </div>
