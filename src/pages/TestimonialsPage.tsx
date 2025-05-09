@@ -8,18 +8,24 @@ import {
   toggleTestimonialVisibility,
   deleteTestimonial,
 } from "../services/testimonialService";
+import Modal from "../components/common/Modal";
 
 const TestimonialsPage: React.FC = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    id: number;
+    author: string;
+  } | null>(null);
   const [formData, setFormData] = useState<{
     id?: number;
     author: string;
     comment: string;
     rating: number;
   }>({ author: "", comment: "", rating: 5 });
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     const fetchTestimonials = async () => {
@@ -36,8 +42,20 @@ const TestimonialsPage: React.FC = () => {
     fetchTestimonials();
   }, []);
 
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!formData.author) newErrors.author = "El autor es obligatorio";
+    if (!formData.comment) newErrors.comment = "El comentario es obligatorio";
+    if (!formData.rating || formData.rating < 1 || formData.rating > 5)
+      newErrors.rating = "La calificación debe estar entre 1 y 5";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setLoading(true);
     try {
       if (formData.id) {
@@ -57,6 +75,7 @@ const TestimonialsPage: React.FC = () => {
       setTestimonials(data);
       setModalOpen(false);
       setFormData({ author: "", comment: "", rating: 5 });
+      setErrors({});
     } catch (err) {
       setError("Error al guardar testimonio");
     } finally {
@@ -83,6 +102,7 @@ const TestimonialsPage: React.FC = () => {
       await deleteTestimonial(id);
       const data = await getTestimonials();
       setTestimonials(data);
+      setDeleteModal(null);
     } catch (err) {
       setError("Error al eliminar testimonio");
     } finally {
@@ -91,158 +111,414 @@ const TestimonialsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold"></h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Gestión de Testimonios
+        </h1>
         <button
           onClick={() => setModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2 shadow-sm"
+          disabled={loading}
         >
-          <i className="fas fa-plus"></i>
-          Nuevo Testimonio
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          <span>Nuevo Testimonio</span>
         </button>
       </div>
-
-      {loading && (
+      {loading && !testimonials.length && (
         <div className="text-center">
-          <i className="fas fa-spinner animate-spin text-2xl"></i>
+          <svg
+            className="animate-spin h-8 w-8 text-indigo-600 mx-auto"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+            />
+          </svg>
         </div>
       )}
-      {error && <div className="text-red-600 mb-4">{error}</div>}
+      {error && (
+        <div className="mb-4 p-4 rounded-lg bg-red-100 text-red-800 flex items-center space-x-3 shadow-sm">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <span>{error}</span>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {testimonials.map((testimonial) => (
-          <div key={testimonial.id} className="bg-white rounded-lg shadow">
-            <div className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mr-4">
-                  <span className="text-indigo-600 font-semibold">
-                    {testimonial.author.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-semibold">{testimonial.author}</h3>
-                  <p className="text-sm text-gray-500">Cliente</p>
-                </div>
-                <div className="ml-auto flex gap-2">
-                  <button
-                    onClick={() =>
-                      setFormData({
-                        id: testimonial.id,
-                        author: testimonial.author,
-                        comment: testimonial.comment,
-                        rating: testimonial.rating,
-                      })
-                    }
-                    className="text-gray-600 hover:text-gray-800"
-                  >
-                    <i className="fas fa-edit"></i>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(testimonial.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
-              <p className="text-gray-600 mb-4">{testimonial.comment}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex text-amber-400">
-                  {[...Array(5)].map((_, i) => (
-                    <i
-                      key={i}
-                      className={`fas fa-star ${
-                        i < testimonial.rating
-                          ? "text-amber-400"
-                          : "text-gray-300"
-                      }`}
-                    ></i>
-                  ))}
-                </div>
-                <span className="text-sm text-gray-500">
-                  {testimonial.date}
+          <div
+            key={testimonial.id}
+            className="bg-white rounded-xl shadow-md p-6 transition-transform duration-300 hover:scale-105 hover:shadow-lg"
+          >
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mr-4">
+                <span className="text-indigo-600 font-semibold">
+                  {testimonial.author.charAt(0)}
                 </span>
               </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {testimonial.author}
+                </h3>
+                <p className="text-sm text-gray-500">Cliente</p>
+              </div>
+              <div className="ml-auto flex gap-2">
+                <button
+                  onClick={() => {
+                    setFormData({
+                      id: testimonial.id,
+                      author: testimonial.author,
+                      comment: testimonial.comment,
+                      rating: testimonial.rating,
+                    });
+                    setModalOpen(true);
+                  }}
+                  className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                  aria-label="Editar testimonio"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15.828l-5.657 1.414 1.414-5.657L15.586 3.586z"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={() =>
+                    setDeleteModal({
+                      id: testimonial.id,
+                      author: testimonial.author,
+                    })
+                  }
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                  aria-label="Eliminar testimonio"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4m-4 4v12m4-12v12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <p className="text-gray-600 mb-4 line-clamp-3">
+              {testimonial.comment}
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex text-amber-400">
+                {[...Array(5)].map((_, i) => (
+                  <svg
+                    key={i}
+                    className={`w-5 h-5 ${
+                      i < testimonial.rating
+                        ? "text-amber-400"
+                        : "text-gray-300"
+                    }`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+              <span className="text-sm text-gray-500">{testimonial.date}</span>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => handleToggleVisibility(testimonial.id)}
+                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  testimonial.visible
+                    ? "bg-green-100 text-green-800 hover:bg-green-200"
+                    : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                }`}
+              >
+                {testimonial.visible ? "Ocultar" : "Mostrar"}
+              </button>
             </div>
           </div>
         ))}
       </div>
-
-      {/* Modal for Create/Edit */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">
-              {formData.id ? "Editar Testimonio" : "Nuevo Testimonio"}
-            </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Autor
-                </label>
-                <input
-                  type="text"
-                  value={formData.author}
-                  onChange={(e) =>
-                    setFormData({ ...formData, author: e.target.value })
-                  }
-                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Comentario
-                </label>
-                <textarea
-                  value={formData.comment}
-                  onChange={(e) =>
-                    setFormData({ ...formData, comment: e.target.value })
-                  }
-                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                  rows={4}
-                ></textarea>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Calificación
-                </label>
-                <select
-                  value={formData.rating}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      rating: parseInt(e.target.value),
-                    })
-                  }
-                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                >
-                  {[1, 2, 3, 4, 5].map((num) => (
-                    <option key={num} value={num}>
-                      {num} Estrella{num > 1 ? "s" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                >
-                  {loading && <i className="fas fa-spinner animate-spin"></i>}
-                  Guardar
-                </button>
-              </div>
-            </form>
+        <Modal
+          isOpen={modalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setFormData({ author: "", comment: "", rating: 5 });
+            setErrors({});
+          }}
+          title={formData.id ? "Editar Testimonio" : "Nuevo Testimonio"}
+        >
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Autor
+              </label>
+              <input
+                type="text"
+                value={formData.author}
+                onChange={(e) =>
+                  setFormData({ ...formData, author: e.target.value })
+                }
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+                  errors.author ? "border-red-500" : "border-gray-300"
+                }`}
+                disabled={loading}
+              />
+              {errors.author && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  {errors.author}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Comentario
+              </label>
+              <textarea
+                value={formData.comment}
+                onChange={(e) =>
+                  setFormData({ ...formData, comment: e.target.value })
+                }
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+                  errors.comment ? "border-red-500" : "border-gray-300"
+                }`}
+                rows={4}
+                disabled={loading}
+              ></textarea>
+              {errors.comment && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  {errors.comment}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Calificación
+              </label>
+              <select
+                value={formData.rating}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    rating: parseInt(e.target.value),
+                  })
+                }
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
+                  errors.rating ? "border-red-500" : "border-gray-300"
+                }`}
+                disabled={loading}
+              >
+                {[1, 2, 3, 4, 5].map((num) => (
+                  <option key={num} value={num}>
+                    {num} Estrella{num > 1 ? "s" : ""}
+                  </option>
+                ))}
+              </select>
+              {errors.rating && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  {errors.rating}
+                </p>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalOpen(false);
+                  setFormData({ author: "", comment: "", rating: 5 });
+                  setErrors({});
+                }}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+              >
+                {loading && (
+                  <svg
+                    className="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                    />
+                  </svg>
+                )}
+                <span>Guardar</span>
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {deleteModal && (
+        <Modal
+          isOpen={true}
+          onClose={() => setDeleteModal(null)}
+          title="Confirmar Eliminación"
+        >
+          <div className="space-y-6">
+            <p className="text-gray-600">
+              ¿Estás seguro de eliminar el testimonio de{" "}
+              <strong>{deleteModal.author}</strong>? Esta acción es
+              irreversible.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                disabled={loading}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDelete(deleteModal.id)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                      />
+                    </svg>
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <span>Eliminar</span>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

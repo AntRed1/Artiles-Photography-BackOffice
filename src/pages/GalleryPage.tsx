@@ -1,337 +1,236 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
+import { useGalleryContext } from "../context/GalleryContext";
+import Modal from "../components/common/Modal";
+import Alert from "../components/common/Alert";
+import ImageForm from "../components/gallery/ImageForm";
+import ImageList from "../components/gallery/ImageList";
+import { deleteImage } from "../services/galleryService";
 import type { GalleryItem } from "../types/gallery";
-import {
-  getCarouselImages,
-  getGalleryImages,
-  uploadImage,
-  updateImage,
-  deleteImage,
-} from "../services/galleryService";
 
 const GalleryPage: React.FC = () => {
-  const [carouselImages, setCarouselImages] = useState<GalleryItem[]>([]);
-  const [galleryImages, setGalleryImages] = useState<GalleryItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { carouselImages, galleryImages, refreshImages, updateImages } =
+    useGalleryContext();
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [formData, setFormData] = useState<{
+  const [deleteModal, setDeleteModal] = useState<{
+    id: number;
     type: "carousel" | "gallery";
-    id?: number;
-    file?: File;
-    title: string;
-    description: string;
-    order: number;
-  }>({ type: "carousel", title: "", description: "", order: 0 });
+  } | null>(null);
+  const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alert, setAlert] = useState<{ type: string; message: string } | null>(
+    null
+  );
 
   useEffect(() => {
-    const fetchImages = async () => {
+    console.log("GalleryPage useEffect triggered");
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const loadImages = async () => {
+      if (!isMounted) return;
       setLoading(true);
       try {
-        const [carousel, gallery] = await Promise.all([
-          getCarouselImages(),
-          getGalleryImages(),
-        ]);
-        setCarouselImages(carousel);
-        setGalleryImages(gallery);
-      } catch (err) {
-        setError("Error al cargar imágenes");
+        await refreshImages();
+      } catch (error) {
+        console.error("Error loading images:", error);
+        if (isMounted) {
+          setAlert({
+            type: "error",
+            message: "No se pudieron cargar las imágenes",
+          });
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
-    fetchImages();
-  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (formData.id) {
-        await updateImage(formData.type, formData.id, {
-          title: formData.title,
-          description: formData.description,
-          order: formData.order,
-        });
-      } else if (formData.file) {
-        await uploadImage(
-          formData.type,
-          formData.file,
-          formData.title,
-          formData.description,
-          formData.order
-        );
+    timeoutId = setTimeout(() => {
+      loadImages();
+    }, 100);
+
+    return () => {
+      console.log("GalleryPage useEffect cleanup");
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
       }
-      const [carousel, gallery] = await Promise.all([
-        getCarouselImages(),
-        getGalleryImages(),
-      ]);
-      setCarouselImages(carousel);
-      setGalleryImages(gallery);
-      setModalOpen(false);
-      setFormData({ type: "carousel", title: "", description: "", order: 0 });
-    } catch (err) {
-      setError("Error al guardar imagen");
+    };
+  }, [refreshImages]);
+
+  const handleDelete = async (id: number, type: "carousel" | "gallery") => {
+    setIsSubmitting(true);
+    try {
+      await deleteImage(id, type);
+      updateImages(type, { id } as GalleryItem, "delete");
+      setAlert({
+        type: "success",
+        message: "Imagen eliminada con éxito",
+      });
+    } catch (error) {
+      setAlert({
+        type: "error",
+        message: `No se pudo eliminar la imagen: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`,
+      });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
+      setDeleteModal(null);
     }
   };
 
-  const handleDelete = async (type: "carousel" | "gallery", id: number) => {
-    setLoading(true);
-    try {
-      await deleteImage(type, id);
-      const [carousel, gallery] = await Promise.all([
-        getCarouselImages(),
-        getGalleryImages(),
-      ]);
-      setCarouselImages(carousel);
-      setGalleryImages(gallery);
-    } catch (err) {
-      setError("Error al eliminar imagen");
-    } finally {
-      setLoading(false);
-    }
+  const handleFormSubmit = (result: GalleryItem, action: "add" | "update") => {
+    console.log("handleFormSubmit called", { result, action });
+    updateImages(result.type, result, action);
+    setAlert({
+      type: "success",
+      message:
+        action === "add"
+          ? "Imagen creada con éxito"
+          : "Imagen actualizada con éxito",
+    });
   };
+
+  const openModal = (image: GalleryItem | null = null) => {
+    setSelectedImage(image);
+    setModalOpen(true);
+  };
+
+  console.log("GalleryPage rendered", {
+    loading,
+    carouselImagesLength: carouselImages.length,
+    galleryImagesLength: galleryImages.length,
+  });
+
+  if (loading) {
+    return (
+      <div className="mx-auto w-full max-w-4xl rounded-xl border border-gray-200 bg-white shadow-lg p-6">
+        <div className="flex animate-pulse space-x-4">
+          <div className="w-12 h-12 rounded-full bg-gray-200"></div>
+          <div className="flex-1 space-y-6 py-1">
+            <div className="h-3 rounded bg-gray-200"></div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 h-3 rounded bg-gray-200"></div>
+                <div className="col-span-1 h-3 rounded bg-gray-200"></div>
+              </div>
+              <div className="h-3 rounded bg-gray-200"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-7xl mx-auto">
+      {alert && (
+        <Alert
+          type={alert.type as "success" | "error"}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
+      )}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold"></h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Gestión de Contenido
+        </h1>
         <button
-          onClick={() => setModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+          onClick={() => openModal()}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2 shadow-sm"
         >
-          <i className="fas fa-plus"></i>
-          Nueva Imagen
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          <span>Agregar Imagen</span>
         </button>
       </div>
-
-      {/* Carousel Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold mb-6">
-          Gestión del Carrusel Principal
-        </h2>
-        {loading && (
-          <div className="text-center">
-            <i className="fas fa-spinner animate-spin text-2xl"></i>
-          </div>
-        )}
-        {error && <div className="text-red-600 mb-4">{error}</div>}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {carouselImages.map((image) => (
-            <div key={image.id} className="bg-white rounded-lg shadow">
-              <div className="relative aspect-[16/9] overflow-hidden rounded-t-lg">
-                <img
-                  src={image.url}
-                  alt={image.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <button
-                    onClick={() =>
-                      setFormData({
-                        type: "carousel",
-                        id: image.id,
-                        title: image.title,
-                        description: image.description,
-                        order: image.order,
-                      })
-                    }
-                    className="bg-white text-gray-800 p-2 rounded-full hover:bg-gray-100"
-                  >
-                    <i className="fas fa-edit"></i>
-                  </button>
-                  <button
-                    onClick={() => handleDelete("carousel", image.id)}
-                    className="bg-white text-red-600 p-2 rounded-full hover:bg-gray-100"
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">{image.title}</span>
-                  <div className="flex gap-2">
-                    {image.order > 1 && (
-                      <button className="text-gray-600 hover:text-gray-800">
-                        <i className="fas fa-arrow-left"></i>
-                      </button>
-                    )}
-                    {image.order < carouselImages.length && (
-                      <button className="text-gray-600 hover:text-gray-800">
-                        <i className="fas fa-arrow-right"></i>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+      <ImageList
+        carouselImages={carouselImages}
+        galleryImages={galleryImages}
+        onEdit={openModal}
+        onDelete={(id, type) => setDeleteModal({ id, type })}
+      />
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={selectedImage ? "Editar Imagen" : "Nueva Imagen"}
+      >
+        <ImageForm
+          image={selectedImage}
+          onClose={() => setModalOpen(false)}
+          onSubmit={handleFormSubmit}
+        />
+      </Modal>
+      {deleteModal && (
+        <Modal
+          isOpen={true}
+          onClose={() => setDeleteModal(null)}
+          title="Confirmar Eliminación"
+        >
+          <div className="space-y-6">
+            <p className="text-gray-600">
+              ¿Estás seguro de eliminar esta imagen? Esta acción es
+              irreversible.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDelete(deleteModal.id, deleteModal.type)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                      />
+                    </svg>
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <span>Eliminar</span>
+                )}
+              </button>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Gallery Section */}
-      <div>
-        <h2 className="text-xl font-bold mb-6">Nuestra Galería</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {galleryImages.map((image) => (
-            <div key={image.id} className="bg-white rounded-lg shadow">
-              <div className="relative aspect-square overflow-hidden rounded-t-lg">
-                <img
-                  src={image.url}
-                  alt={image.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <button
-                    onClick={() =>
-                      setFormData({
-                        type: "gallery",
-                        id: image.id,
-                        title: image.title,
-                        description: image.description,
-                        order: image.order,
-                      })
-                    }
-                    className="bg-white text-gray-800 p-2 rounded-full hover:bg-gray-100"
-                  >
-                    <i className="fas fa-edit"></i>
-                  </button>
-                  <button
-                    onClick={() => handleDelete("gallery", image.id)}
-                    className="bg-white text-red-600 p-2 rounded-full hover:bg-gray-100"
-                  >
-                    <i className="fas fa-trash"></i>
-                  </button>
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">{image.title}</span>
-                  <div className="flex gap-2">
-                    {image.order > 1 && (
-                      <button className="text-gray-600 hover:text-gray-800">
-                        <i className="fas fa-arrow-left"></i>
-                      </button>
-                    )}
-                    {image.order < galleryImages.length && (
-                      <button className="text-gray-600 hover:text-gray-800">
-                        <i className="fas fa-arrow-right"></i>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Modal for Create/Edit */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">
-              {formData.id ? "Editar Imagen" : "Nueva Imagen"}
-            </h2>
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Tipo
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      type: e.target.value as "carousel" | "gallery",
-                    })
-                  }
-                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                >
-                  <option value="carousel">Carrusel</option>
-                  <option value="gallery">Galería</option>
-                </select>
-              </div>
-              {!formData.id && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Archivo
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) =>
-                      setFormData({ ...formData, file: e.target.files?.[0] })
-                    }
-                    className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                  />
-                </div>
-              )}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Título
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
-                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Descripción
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                  rows={4}
-                ></textarea>
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                  Orden
-                </label>
-                <input
-                  type="number"
-                  value={formData.order}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      order: parseInt(e.target.value),
-                    })
-                  }
-                  className="border border-gray-300 rounded-lg w-full p-2 text-sm"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                >
-                  {loading && <i className="fas fa-spinner animate-spin"></i>}
-                  Guardar
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

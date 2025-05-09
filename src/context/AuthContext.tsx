@@ -27,16 +27,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const user = useMemo(() => {
     const decoded = decodeJwt();
     if (decoded && token) {
-      // Asegura que el nombre esté disponible
+      console.log("AuthContext user computed", { decoded, token });
       return { ...decoded, name: decoded.name || "Usuario" };
     }
+    console.log("AuthContext user is null", { token });
     return null;
   }, [token]);
 
-  const isAdmin = useMemo(() => hasAdminRole(user), [user]);
+  const isAdmin = useMemo(() => {
+    const admin = hasAdminRole(user);
+    console.log("AuthContext isAdmin computed", { isAdmin: admin, user });
+    return admin;
+  }, [user]);
+
   const isAuthenticated = !!user;
 
   const login = async (email: string, password: string) => {
+    console.log("AuthContext login called", { email });
     try {
       const response: AuthResponse = await loginService({ email, password });
       localStorage.setItem("jwt", response.token);
@@ -49,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const register = async (name: string, email: string, password: string) => {
+    console.log("AuthContext register called", { name, email });
     try {
       const response: AuthResponse = await registerService({
         name,
@@ -65,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = () => {
+    console.log("AuthContext logout called");
     localStorage.removeItem("jwt");
     setToken(null);
   };
@@ -77,6 +86,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     register,
     logout,
   };
+
+  console.log("AuthProvider rendered", { isAuthenticated, isAdmin });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

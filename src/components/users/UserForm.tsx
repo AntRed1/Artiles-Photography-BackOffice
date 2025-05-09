@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { createUser, updateUser } from "../../services/userService";
 import type { User } from "../../types/user";
+import { useUserContext } from "../../context/UserContext";
+import Alert from "../common/Alert";
 
 interface UserFormProps {
   user: User | null;
@@ -8,6 +10,7 @@ interface UserFormProps {
 }
 
 const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
+  const { updateUsers } = useUserContext();
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
@@ -19,6 +22,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
   const [alert, setAlert] = useState<{ type: string; message: string } | null>(
     null
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableRoles = ["Administrador", "Editor", "Visualizador", "Usuario"];
 
@@ -37,75 +41,91 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    setIsSubmitting(true);
     try {
+      let result: User;
       if (user) {
-        await updateUser(user.id, {
+        result = await updateUser(user.id, {
           name: formData.name,
           email: formData.email,
           password: formData.password || undefined,
           role: formData.role,
           enabled: formData.enabled,
         });
+        updateUsers({ ...result, roles: [formData.role] }, "update");
         setAlert({
           type: "success",
           message: "Usuario actualizado correctamente",
         });
       } else {
-        await createUser({
+        result = await createUser({
           name: formData.name,
           email: formData.email,
           password: formData.password,
           role: formData.role,
           enabled: formData.enabled,
         });
+        updateUsers({ ...result, roles: [formData.role] }, "add");
         setAlert({ type: "success", message: "Usuario creado correctamente" });
       }
       setTimeout(() => onClose(), 1000);
     } catch (error) {
       setAlert({
         type: "error",
-        message: `Error: ${
+        message: `No se pudo procesar el usuario: ${
           error instanceof Error ? error.message : "Error desconocido"
         }`,
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="relative">
-      <h2 className="text-xl font-semibold mb-4">
-        {user ? "Editar Usuario" : "Crear Usuario"}
-      </h2>
+    <div className="space-y-6">
       {alert && (
-        <div
-          className={`p-4 mb-4 rounded-lg flex items-center space-x-2 ${
-            alert.type === "success"
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
-          }`}
-        >
-          <span>{alert.message}</span>
-        </div>
+        <Alert
+          type={alert.type as "success" | "error"}
+          message={alert.message}
+          onClose={() => setAlert(null)}
+        />
       )}
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Nombre
           </label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className={`mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:opacity-50 ${
               errors.name ? "border-red-500" : "border-gray-300"
             }`}
+            disabled={isSubmitting}
           />
           {errors.name && (
-            <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {errors.name}
+            </p>
           )}
         </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Email
           </label>
           <input
@@ -114,16 +134,33 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
             onChange={(e) =>
               setFormData({ ...formData, email: e.target.value })
             }
-            className={`mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:opacity-50 ${
               errors.email ? "border-red-500" : "border-gray-300"
             }`}
+            disabled={isSubmitting}
           />
           {errors.email && (
-            <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {errors.email}
+            </p>
           )}
         </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Contraseña
           </label>
           <input
@@ -132,23 +169,43 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
             onChange={(e) =>
               setFormData({ ...formData, password: e.target.value })
             }
-            className={`mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:opacity-50 ${
               errors.password ? "border-red-500" : "border-gray-300"
             }`}
             placeholder={user ? "Dejar en blanco para no cambiar" : ""}
+            disabled={isSubmitting}
           />
           {errors.password && (
-            <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {errors.password}
+            </p>
           )}
         </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">Rol</label>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Rol
+          </label>
           <select
             value={formData.role}
             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-            className={`mt-1 w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:opacity-50 ${
               errors.role ? "border-red-500" : "border-gray-300"
             }`}
+            disabled={isSubmitting}
           >
             <option value="">Seleccionar rol</option>
             {availableRoles.map((role) => (
@@ -158,11 +215,27 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
             ))}
           </select>
           {errors.role && (
-            <p className="text-red-500 text-xs mt-1">{errors.role}</p>
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {errors.role}
+            </p>
           )}
         </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
             Estado
           </label>
           <label className="flex items-center space-x-2">
@@ -172,24 +245,53 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
               onChange={(e) =>
                 setFormData({ ...formData, enabled: e.target.checked })
               }
-              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+              disabled={isSubmitting}
             />
-            <span className="text-sm">Activo</span>
+            <span className="text-sm text-gray-700">Activo</span>
           </label>
         </div>
-        <div className="flex justify-end space-x-2">
+        <div className="flex justify-end space-x-3 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            disabled={isSubmitting}
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+            disabled={isSubmitting}
           >
-            {user ? "Actualizar" : "Crear"}
+            {isSubmitting ? (
+              <>
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                  />
+                </svg>
+                <span>Procesando...</span>
+              </>
+            ) : (
+              <span>{user ? "Actualizar" : "Crear"}</span>
+            )}
           </button>
         </div>
       </form>

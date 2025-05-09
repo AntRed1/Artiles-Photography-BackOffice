@@ -7,9 +7,13 @@ export const createUser = (user: {
   name: string;
   email: string;
   password: string;
-  roles: string[];
+  role: string;
   enabled: boolean;
-}): Promise<User> => api("/admin/users", "POST", user);
+}): Promise<User> =>
+  api("/admin/users", "POST", {
+    ...user,
+    roles: [user.role],
+  });
 
 export const updateUser = (
   id: number,
@@ -17,10 +21,14 @@ export const updateUser = (
     name?: string;
     email?: string;
     password?: string;
-    roles?: string[];
+    role?: string;
     enabled?: boolean;
   }
-): Promise<User> => api(`/admin/users/${id}`, "PUT", user);
+): Promise<User> =>
+  api(`/admin/users/${id}`, "PUT", {
+    ...user,
+    roles: user.role ? [user.role] : undefined,
+  });
 
 export const deleteUser = (id: number): Promise<void> =>
   api(`/admin/users/${id}`, "DELETE");
