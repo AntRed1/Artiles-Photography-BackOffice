@@ -17,9 +17,7 @@ const UserList: React.FC<UserListProps> = ({ onEdit }) => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [alert, setAlert] = useState<{ type: string; message: string } | null>(
-    null
-  );
+  const [alert, setAlert] = useState<{ type: string; message: string } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<{
     id: number;
     name: string;
@@ -295,15 +293,27 @@ const UserList: React.FC<UserListProps> = ({ onEdit }) => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      user.enabled
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {user.enabled ? "Activo" : "Inactivo"}
-                  </span>
+                  {user.enabled ? (
+                    <span
+                      className="inline-flex items-center px-2 py-1 text-xs font-semibold text-emerald-800 bg-emerald-100 rounded-full"
+                      aria-label="Usuario activo"
+                    >
+                      <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 mr-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                      </span>
+                      Activo
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center px-2 py-1 text-xs font-semibold text-red-800 bg-red-100 rounded-full"
+                      aria-label="Usuario inactivo"
+                    >
+                      <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500 mr-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                      </span>
+                      Inactivo
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   {isAdmin && (

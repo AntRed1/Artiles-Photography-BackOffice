@@ -1,24 +1,36 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { AlertTriangle } from "lucide-react";
 
 const UnauthorizedPage: React.FC = () => {
   return (
-    <div className="p-6 bg-gray-100 min-h-screen flex items-center justify-center">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-xl p-6 text-center">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 px-4">
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white p-10 rounded-2xl shadow-2xl max-w-md w-full text-center space-y-6"
+      >
+        <div className="flex justify-center">
+          <div className="bg-red-100 text-red-600 rounded-full p-4">
+            <AlertTriangle className="h-10 w-10" />
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold text-gray-800">
           Acceso No Autorizado
         </h1>
-        <p className="text-gray-600 mb-6">
-          No tienes permisos para acceder a esta página. Por favor, contacta al
-          administrador si crees que esto es un error.
+        <p className="text-gray-600">
+          No tienes permisos para acceder a esta página. Si crees que esto es
+          un error, por favor contacta al administrador.
         </p>
         <Link
           to="/"
-          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition duration-200"
+          className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition duration-200 shadow-md"
         >
           Volver al Inicio
         </Link>
-      </div>
+      </motion.div>
     </div>
   );
 };

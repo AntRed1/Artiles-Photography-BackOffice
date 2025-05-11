@@ -13,13 +13,22 @@ const ImageCard: React.FC<{
   onEdit: (image: GalleryItem) => void;
   onDelete: (id: number, type: "carousel" | "gallery") => void;
 }> = ({ image, onEdit, onDelete }) => {
+  // Determinar la URL de la imagen según el tipo
+  const imageSrc = image.type === "carousel" ? image.url : image.imageUrl;
+
+  // Imagen de respaldo si la URL falla
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.src = "/placeholder-image.jpg"; // Asegúrate de tener una imagen de respaldo en /public
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-lg">
       <img
-        src={image.url}
-        alt={image.title || image.description}
+        src={imageSrc || "/placeholder-image.jpg"} // Usa la imagen de respaldo si imageSrc es undefined
+        alt={image.title || image.description || "Imagen sin título"}
         className="w-full h-48 object-cover"
         loading="lazy"
+        onError={handleImageError}
       />
       <div className="p-4">
         {image.title && (

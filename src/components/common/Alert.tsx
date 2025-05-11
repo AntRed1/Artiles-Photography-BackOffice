@@ -1,67 +1,55 @@
 import React from "react";
+import { CheckCircle, AlertCircle, Info, AlertTriangle, X } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface AlertProps {
-  type: "success" | "error";
+  type: "success" | "error" | "info" | "warning";
   message: string;
   onClose: () => void;
 }
 
+const alertStyles = {
+  success: {
+    icon: <CheckCircle className="w-5 h-5 text-green-600" />,
+    bg: "bg-green-50 text-green-800 border-green-500",
+  },
+  error: {
+    icon: <AlertCircle className="w-5 h-5 text-red-600" />,
+    bg: "bg-red-50 text-red-800 border-red-500",
+  },
+  info: {
+    icon: <Info className="w-5 h-5 text-blue-600" />,
+    bg: "bg-blue-50 text-blue-800 border-blue-500",
+  },
+  warning: {
+    icon: <AlertTriangle className="w-5 h-5 text-yellow-600" />,
+    bg: "bg-yellow-50 text-yellow-800 border-yellow-500",
+  },
+};
+
 const Alert: React.FC<AlertProps> = ({ type, message, onClose }) => {
+  const { icon, bg } = alertStyles[type];
+
   return (
-    <div
-      className={`mb-4 p-4 rounded-lg flex justify-between items-center shadow-sm transition-all duration-300 ${
-        type === "success"
-          ? "bg-green-100 text-green-800 border border-green-300"
-          : "bg-red-100 text-red-800 border border-red-300"
-      }`}
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      layout
+      className={`p-4 rounded-xl flex justify-between items-center shadow-md border-l-4 ${bg}`}
     >
-      <div className="flex items-center">
-        <svg
-          className="w-5 h-5 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {type === "success" ? (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M5 13l4 4L19 7"
-            />
-          ) : (
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          )}
-        </svg>
-        <span>{message}</span>
+      <div className="flex items-center gap-2">
+        {icon}
+        <span className="text-sm font-medium">{message}</span>
       </div>
       <button
         onClick={onClose}
-        className="text-current hover:opacity-70 transition-opacity"
+        className="text-gray-500 hover:text-gray-700 transition"
         aria-label="Cerrar alerta"
       >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
+        <X className="w-4 h-4" />
       </button>
-    </div>
+    </motion.div>
   );
 };
 

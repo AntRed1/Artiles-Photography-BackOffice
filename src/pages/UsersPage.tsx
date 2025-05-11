@@ -27,24 +27,26 @@ const UsersPage: React.FC = () => {
 
   return (
     <UserProvider>
-      <div className="p-6 bg-gray-100 min-h-screen">
+      <div className="bg-gray-50 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-800">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 gap-4">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800">
               Gestión de Usuarios y Roles
             </h1>
             <button
               onClick={() => handleOpenModal()}
-              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition duration-200"
+              className="inline-flex items-center justify-center rounded-md bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
               aria-label="Agregar nuevo usuario"
             >
-              Agregar Usuario
+              + Agregar Usuario
             </button>
           </div>
+
           <UserList onEdit={handleOpenModal} />
+
           {isModalOpen && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-300 ease-in-out">
-              <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg transform transition-transform duration-300 ease-in-out scale-100">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 animate-fade-in">
                 <UserForm user={selectedUser} onClose={handleCloseModal} />
               </div>
             </div>

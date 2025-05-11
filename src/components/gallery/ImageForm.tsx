@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createImage, updateImage } from "../../services/galleryService";
 import type { GalleryItem } from "../../types/gallery";
 import Alert from "../common/Alert";
@@ -16,11 +16,27 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, onClose, onSubmit }) => {
     description: image?.description || "",
     type: image?.type || "gallery",
   });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    image
+      ? image.type === "carousel"
+        ? image.url ?? null
+        : image.imageUrl ?? null
+      : null
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alert, setAlert] = useState<{ type: string; message: string } | null>(
     null
   );
+
+  // Liberar la URL de vista previa al desmontar o cambiar archivo
+  useEffect(() => {
+    return () => {
+      if (previewUrl && !image?.url && !image?.imageUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl, image]);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -28,8 +44,34 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, onClose, onSubmit }) => {
     if (formData.type === "carousel" && !formData.title)
       newErrors.title = "El título es obligatorio";
     if (!formData.description) newErrors.description = "Añade una descripción";
+    if (
+      formData.file &&
+      !["image/jpeg", "image/png", "image/gif"].includes(formData.file.type)
+    )
+      newErrors.file = "Solo se permiten imágenes JPEG, PNG o GIF";
+    if (formData.file && formData.file.size > 5 * 1024 * 1024)
+      newErrors.file = "La imagen no debe superar los 5 MB";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null;
+    if (file) {
+      if (previewUrl && !image?.url && !image?.imageUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(URL.createObjectURL(file));
+    } else {
+      setPreviewUrl(
+        image
+          ? image.type === "carousel"
+            ? image.url ?? null
+            : image.imageUrl ?? null
+          : null
+      );
+    }
+    setFormData({ ...formData, file });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -41,6 +83,7 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, onClose, onSubmit }) => {
       let result: GalleryItem;
       if (image) {
         result = await updateImage(image.id, {
+          file: formData.file,
           title: formData.title,
           description: formData.description,
           type: formData.type as "carousel" | "gallery",
@@ -81,6 +124,47 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, onClose, onSubmit }) => {
         />
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
+        {previewUrl && (
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Vista previa de la imagen
+            </label>
+            <div className="relative w-full h-48 sm:h-64 bg-gray-100 rounded-lg overflow-hidden shadow-sm">
+              <img
+                src={previewUrl}
+                alt="Vista previa"
+                className="w-full h-full object-cover"
+                onError={(e) =>
+                  (e.currentTarget.src = "/placeholder-image.jpg")
+                }
+              />
+              {isSubmitting && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                  <svg
+                    className="animate-spin h-8 w-8 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                    />
+                  </svg>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Tipo de imagen
@@ -100,44 +184,37 @@ const ImageForm: React.FC<ImageFormProps> = ({ image, onClose, onSubmit }) => {
             <option value="carousel">Carrusel</option>
           </select>
         </div>
-        {!image && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Subir imagen
-            </label>
-            <input
-              type="file"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  file: e.target.files ? e.target.files[0] : null,
-                })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors disabled:opacity-50"
-              accept="image/*"
-              disabled={isSubmitting}
-            />
-            {errors.file && (
-              <p className="mt-1 text-sm text-red-600 flex items-center">
-                <svg
-                  className="w-4 h-4 mr-1"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                {errors.file}
-              </p>
-            )}
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            {image ? "Reemplazar imagen (opcional)" : "Subir imagen"}
+          </label>
+          <input
+            type="file"
+            onChange={handleFileChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 transition-colors disabled:opacity-50"
+            accept="image/jpeg,image/png,image/gif"
+            disabled={isSubmitting}
+          />
+          {errors.file && (
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <svg
+                className="w-4 h-4 mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {errors.file}
+            </p>
+          )}
+        </div>
         {formData.type === "carousel" && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

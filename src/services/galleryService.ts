@@ -114,18 +114,36 @@ export const uploadImage = async (
 
 export const updateImage = async (
   id: number,
-  data: { title?: string; description: string; type: "carousel" | "gallery" }
+  data: {
+    file?: File | null;
+    title?: string;
+    description: string;
+    type: "carousel" | "gallery";
+  }
 ): Promise<GalleryItem> => {
   try {
     const endpoint =
       data.type === "carousel"
         ? `/carousel/${id}`
         : `/gallery/admin/gallery/${id}`;
-    const response = await api<CarouselResponse | GalleryResponse>(
-      endpoint,
-      "PUT",
-      data
-    );
+    let response: CarouselResponse | GalleryResponse;
+    if (data.file) {
+      const formData = new FormData();
+      formData.append("file", data.file);
+      if (data.title) formData.append("title", data.title);
+      formData.append("description", data.description);
+      response = await api<CarouselResponse | GalleryResponse>(
+        endpoint,
+        "PUT",
+        formData
+      );
+    } else {
+      response = await api<CarouselResponse | GalleryResponse>(
+        endpoint,
+        "PUT",
+        { title: data.title, description: data.description }
+      );
+    }
     if (data.type === "carousel") {
       const carouselResponse = response as CarouselResponse;
       return {

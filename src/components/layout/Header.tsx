@@ -51,7 +51,7 @@ const Header: React.FC = () => {
     setTimeout(() => {
       logout();
       navigate("/login");
-    }, 500);
+    }, 1000); // Tiempo de espera para animación de cierre
   };
 
   const getPageTitle = () => {
@@ -74,13 +74,15 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="bg-white shadow-md">
+    <header className="bg-white shadow-lg">
       <div className="flex justify-between items-center px-6 py-4">
-        <div className="text-2xl font-bold text-gray-900">{getPageTitle()}</div>
-        <div className="flex items-center space-x-4">
+        <div className="text-2xl font-semibold text-gray-900">
+          {getPageTitle()}
+        </div>
+        <div className="flex items-center space-x-6">
           <div className="relative">
             <button
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-all ease-in-out"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               aria-label="Notificaciones"
             >
@@ -113,7 +115,7 @@ const Header: React.FC = () => {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className="p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                      className="p-4 border-b border-gray-200 hover:bg-gray-50 transition-all ease-in-out"
                     >
                       <div className="flex">
                         <div className="flex-shrink-0">
@@ -167,7 +169,7 @@ const Header: React.FC = () => {
                   ))}
                 </div>
                 <div className="p-2 text-center border-t border-gray-200">
-                  <button className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+                  <button className="text-sm text-indigo-600 hover:text-indigo-800 transition-all ease-in-out">
                     Ver todas las notificaciones
                   </button>
                 </div>
@@ -208,20 +210,20 @@ const Header: React.FC = () => {
             </button>
             {userDropdownOpen && (
               <div
-                className={`absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg z-10 animate-slide-up ${
+                className={`absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg z-10 transition-opacity duration-300 ${
                   isLoggingOut ? "opacity-50" : "opacity-100"
                 }`}
               >
                 <div className="py-1">
                   <a
                     href="/settings"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-all ease-in-out"
                   >
                     Mi Perfil
                   </a>
                   <a
                     href="/settings"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-all ease-in-out"
                   >
                     Configuración
                   </a>
@@ -229,7 +231,7 @@ const Header: React.FC = () => {
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center space-x-2"
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-all ease-in-out disabled:opacity-50 flex items-center space-x-2"
                   >
                     <svg
                       className={`w-5 h-5 ${
@@ -244,10 +246,10 @@ const Header: React.FC = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth="2"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        d="M17 16l4-4m0 0l-4-4m4 4H3"
                       />
                     </svg>
-                    <span>Cerrar Sesión</span>
+                    <span>Salir</span>
                   </button>
                 </div>
               </div>
