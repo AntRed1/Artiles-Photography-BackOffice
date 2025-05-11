@@ -112,7 +112,11 @@ const PackageForm: React.FC<PackageFormProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit({
+        ...formData,
+        price: formData.price || 0, // Asegurar que price no sea NaN
+        features: formData.features.filter((f) => f.trim() !== ""), // Filtrar características vacías
+      });
       setAlert({
         type: "success",
         message: pkg
@@ -261,9 +265,12 @@ const PackageForm: React.FC<PackageFormProps> = ({
           </label>
           <input
             type="number"
-            value={formData.price}
+            value={formData.price || ""}
             onChange={(e) =>
-              setFormData({ ...formData, price: parseFloat(e.target.value) })
+              setFormData({
+                ...formData,
+                price: e.target.value ? parseFloat(e.target.value) : 0,
+              })
             }
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:opacity-50 ${
               errors.price ? "border-red-500" : "border-gray-300"

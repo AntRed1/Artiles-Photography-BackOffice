@@ -59,9 +59,10 @@ const RegisterPage: React.FC = () => {
       updatedFormData.password.trim() !== updatedFormData.confirmPassword.trim()
     ) {
       newErrors.confirmPassword = "Las contraseñas no coinciden.";
-      // Depuración: registrar los valores para inspeccionar diferencias
+      /* Depuración: registrar los valores para inspeccionar diferencias
       console.log("Password:", updatedFormData.password);
       console.log("Confirm Password:", updatedFormData.confirmPassword);
+      */
     }
 
     setErrors(newErrors);
@@ -90,7 +91,11 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await register(formData.name.trim(), formData.email.trim(), formData.password.trim());
+      await register(
+        formData.name.trim(),
+        formData.email.trim(),
+        formData.password.trim()
+      );
       showAlert(
         "success",
         "Registro completado. Redirigiendo al login...",

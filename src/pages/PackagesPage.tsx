@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import {
   getPackages,
@@ -12,8 +11,10 @@ import Alert from "../components/common/Alert";
 import PackageForm from "../components/packages/PackageForm";
 import PackageList from "../components/packages/PackageList";
 import { ApiError } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const PackagesPage: React.FC = () => {
+  const { logout, isAuthenticated, isAdmin } = useAuth();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -27,6 +28,8 @@ const PackagesPage: React.FC = () => {
     null
   );
 
+  console.log("PackagesPage rendered", { isAuthenticated, isAdmin });
+
   useEffect(() => {
     let isMounted = true;
     let timeoutId: NodeJS.Timeout | null = null;
@@ -36,6 +39,7 @@ const PackagesPage: React.FC = () => {
       setLoading(true);
       try {
         const data = await getPackages();
+        //console.log("Packages loaded:", JSON.stringify(data, null, 2));
         setPackages(data);
       } catch (error: unknown) {
         if (isMounted) {
@@ -44,6 +48,15 @@ const PackagesPage: React.FC = () => {
               ? error.message
               : "No se pudieron cargar los paquetes";
           setAlert({ type: "error", message });
+          if (
+            error instanceof ApiError &&
+            (error.status === 401 || error.status === 403)
+          ) {
+            setTimeout(() => {
+              logout();
+              window.location.href = "/login";
+            }, 2000);
+          }
         }
       } finally {
         if (isMounted) {
@@ -62,7 +75,7 @@ const PackagesPage: React.FC = () => {
         clearTimeout(timeoutId);
       }
     };
-  }, []);
+  }, [logout]);
 
   const handleSubmit = async (data: {
     id?: number;
@@ -76,30 +89,50 @@ const PackagesPage: React.FC = () => {
   }) => {
     setIsSubmitting(true);
     try {
+      // Validar price
+      const validatedPrice =
+        isNaN(data.price) || data.price <= 0 ? 0 : data.price;
+      const validatedData = { ...data, price: validatedPrice };
+
       if (data.id) {
-        await updatePackage(data.id, data);
+        await updatePackage(data.id, validatedData);
         setPackages(
-          packages.map((p) => (p.id === data.id ? { ...p, ...data } : p))
+          packages.map((p) =>
+            p.id === data.id ? { ...p, ...validatedData } : p
+          )
         );
       } else if (data.file) {
         const newPackage = await createPackage(
-          data.title,
-          data.description,
-          data.price,
+          validatedData.title,
+          validatedData.description,
+          validatedData.price,
           data.file,
-          data.isActive,
-          data.features
+          validatedData.isActive,
+          validatedData.features
         );
         setPackages([...packages, newPackage]);
+      } else {
+        throw new Error("El archivo es obligatorio para crear un paquete");
       }
       setModalOpen(false);
       setSelectedPackage(null);
+      setAlert({ type: "success", message: "Paquete procesado con éxito" });
     } catch (error: unknown) {
+      console.error("Error in handleSubmit:", error);
       const message =
         error instanceof ApiError
           ? error.message
           : "No se pudo procesar el paquete";
       setAlert({ type: "error", message });
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        setTimeout(() => {
+          logout();
+          window.location.href = "/login";
+        }, 2000);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -118,6 +151,15 @@ const PackagesPage: React.FC = () => {
           ? error.message
           : "No se pudo eliminar el paquete";
       setAlert({ type: "error", message });
+      if (
+        error instanceof ApiError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        setTimeout(() => {
+          logout();
+          window.location.href = "/login";
+        }, 2000);
+      }
     } finally {
       setIsSubmitting(false);
     }

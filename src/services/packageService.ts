@@ -35,7 +35,9 @@ export const createPackage = async (
   formData.append("description", description);
   formData.append("price", price.toString());
   formData.append("isActive", isActive.toString());
-  formData.append("features", JSON.stringify(features));
+  features.forEach((feature, index) => {
+    formData.append(`features[${index}]`, feature);
+  });
   try {
     const response = await api<PhotographyPackageResponse>(
       "/packages/admin/upload",
@@ -44,6 +46,7 @@ export const createPackage = async (
     );
     return response;
   } catch (error: unknown) {
+    console.error("Error in createPackage:", error);
     const message =
       error instanceof ApiError && error.message.includes("validation")
         ? "Datos inválidos. Verifica los campos."
@@ -75,7 +78,9 @@ export const updatePackage = async (
   formData.append("price", data.price.toString());
   formData.append("imageUrl", data.imageUrl);
   formData.append("isActive", data.isActive.toString());
-  formData.append("features", JSON.stringify(data.features));
+  data.features.forEach((feature, index) => {
+    formData.append(`features[${index}]`, feature);
+  });
   try {
     const response = await api<PhotographyPackageResponse>(
       `/packages/admin/${id}`,
@@ -84,6 +89,11 @@ export const updatePackage = async (
     );
     return response;
   } catch (error: unknown) {
+    console.error("Error in updatePackage:", {
+      error,
+      status: error instanceof ApiError ? error.status : "unknown",
+      message: error instanceof ApiError ? error.message : "Unknown error",
+    });
     const message =
       error instanceof ApiError && error.message.includes("validation")
         ? "Datos inválidos. Verifica los campos."

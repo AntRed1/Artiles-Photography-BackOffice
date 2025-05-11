@@ -3,37 +3,86 @@ import type { Testimonial } from "../types/testimonial";
 
 interface TestimonialResponse {
   id: number;
-  author: string;
-  comment: string;
+  name: string;
+  message: string;
   rating: number;
-  date: string;
+  createdAt: string;
+  device: string;
+  ipAddress: string;
+  location: string;
+  enable: boolean;
 }
 
 export const getTestimonials = async (): Promise<Testimonial[]> => {
   const response = await api<TestimonialResponse[]>("/testimonials/all");
-  return response;
+  return response.map((res) => ({
+    id: res.id,
+    name: res.name,
+    message: res.message,
+    rating: res.rating,
+    createdAt: res.createdAt,
+    enable: res.enable,
+  }));
 };
 
-export const createTestimonial = async (
-  data: { author: string; comment: string; rating: number }
-): Promise<Testimonial> => {
-  const response = await api<TestimonialResponse>("/testimonials", "POST", data);
-  return response;
+export const createTestimonial = async (data: {
+  name: string;
+  message: string;
+  rating: number;
+}): Promise<Testimonial> => {
+  const response = await api<TestimonialResponse>(
+    "/testimonials",
+    "POST",
+    data
+  );
+  return {
+    id: response.id,
+    name: response.name,
+    message: response.message,
+    rating: response.rating,
+    createdAt: response.createdAt,
+    enable: response.enable,
+  };
 };
 
 export const updateTestimonial = async (
   id: number,
-  data: { author: string; comment: string; rating: number }
+  data: { name: string; message: string; rating: number }
 ): Promise<Testimonial> => {
-  const response = await api<TestimonialResponse>(`/admin/testimonials/${id}`, "PUT", data);
-  return response;
+  const response = await api<TestimonialResponse>(
+    `/testimonials/${id}`,
+    "PUT",
+    data
+  );
+  return {
+    id: response.id,
+    name: response.name,
+    message: response.message,
+    rating: response.rating,
+    createdAt: response.createdAt,
+    enable: response.enable,
+  };
 };
 
-export const toggleTestimonialVisibility = async (id: number): Promise<Testimonial> => {
-  const response = await api<TestimonialResponse>(`/admin/testimonials/${id}/toggle-enable`, "PATCH");
-  return response;
+export const toggleTestimonialVisibility = async (
+  id: number
+): Promise<Testimonial> => {
+  const response = await api<TestimonialResponse>(
+    `/testimonials/${id}/toggle-enable`,
+    "PATCH"
+  );
+  return {
+    id: response.id,
+    name: response.name,
+    message: response.message,
+    rating: response.rating,
+    createdAt: response.createdAt,
+    enable: response.enable,
+  };
 };
 
-export const deleteTestimonial = async (id: number): Promise<void> => {
-  await api<void>(`/admin/testimonials/${id}`, "DELETE");
+export const deleteTestimonial = async (
+  id: number
+): Promise<{ message: string }> => {
+  return await api<{ message: string }>(`/testimonials/${id}`, "DELETE");
 };

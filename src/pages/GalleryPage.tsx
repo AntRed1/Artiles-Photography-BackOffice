@@ -23,7 +23,6 @@ const GalleryPage: React.FC = () => {
   );
 
   useEffect(() => {
-    console.log("GalleryPage useEffect triggered");
     let isMounted = true;
     let timeoutId: NodeJS.Timeout | null = null;
 
@@ -52,7 +51,6 @@ const GalleryPage: React.FC = () => {
     }, 100);
 
     return () => {
-      console.log("GalleryPage useEffect cleanup");
       isMounted = false;
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -83,7 +81,6 @@ const GalleryPage: React.FC = () => {
   };
 
   const handleFormSubmit = (result: GalleryItem, action: "add" | "update") => {
-    console.log("handleFormSubmit called", { result, action });
     updateImages(result.type, result, action);
     setAlert({
       type: "success",
@@ -98,12 +95,6 @@ const GalleryPage: React.FC = () => {
     setSelectedImage(image);
     setModalOpen(true);
   };
-
-  console.log("GalleryPage rendered", {
-    loading,
-    carouselImagesLength: carouselImages.length,
-    galleryImagesLength: galleryImages.length,
-  });
 
   if (loading) {
     return (

@@ -1,6 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+
 import React, { createContext, useContext, useState, useCallback } from "react";
-import { getCarouselImages, getGalleryImages } from "../services/galleryService";
+import {
+  getCarouselImages,
+  getGalleryImages,
+} from "../services/galleryService";
 import type { GalleryItem } from "../types/gallery";
 
 interface GalleryContextType {
@@ -24,13 +28,11 @@ export const GalleryProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const refreshImages = useCallback(async () => {
-    let isCurrentlyRefreshing = false;
     if (isRefreshing) {
-      console.log("refreshImages skipped: already refreshing");
+      //console.log("refreshImages skipped: already refreshing");
       return;
     }
-    console.log("refreshImages called");
-    isCurrentlyRefreshing = true;
+    //console.log("refreshImages called");
     setIsRefreshing(true);
     try {
       const [carousel, gallery] = await Promise.all([
@@ -39,11 +41,10 @@ export const GalleryProvider: React.FC<{ children: React.ReactNode }> = ({
       ]);
       setCarouselImages(carousel);
       setGalleryImages(gallery);
-      console.log("refreshImages completed", { carousel, gallery });
+      //console.log("refreshImages completed", { carousel, gallery });
     } catch (error) {
       console.error("Error refreshing images:", error);
     } finally {
-      isCurrentlyRefreshing = false;
       setIsRefreshing(false);
     }
   }, []); // Eliminada [isRefreshing] como dependencia
@@ -88,11 +89,14 @@ export const GalleryProvider: React.FC<{ children: React.ReactNode }> = ({
     updateImages,
   };
 
-  console.log("GalleryProvider rendered");
+  //console.log("GalleryProvider rendered");
 
-  return <GalleryContext.Provider value={value}>{children}</GalleryContext.Provider>;
+  return (
+    <GalleryContext.Provider value={value}>{children}</GalleryContext.Provider>
+  );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGalleryContext = () => {
   const context = useContext(GalleryContext);
   if (!context) {

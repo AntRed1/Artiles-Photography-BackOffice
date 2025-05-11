@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+  import { toast } from "react-toastify";
 import type { Testimonial } from "../types/testimonial";
 import {
   getTestimonials,
@@ -14,18 +16,38 @@ const TestimonialsPage: React.FC = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null); // Nuevo estado para mensajes de éxito
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     id: number;
-    author: string;
+    name: string;
   } | null>(null);
   const [formData, setFormData] = useState<{
     id?: number;
-    author: string;
-    comment: string;
+    name: string;
+    message: string;
     rating: number;
-  }>({ author: "", comment: "", rating: 5 });
+  }>({ name: "", message: "", rating: 5 });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const navigate = useNavigate();
+
+  // Verificar autenticación al cargar el componente
+  useEffect(() => {
+    const token = localStorage.getItem("jwt");
+    if (!token) {
+      setError("Debes iniciar sesión para acceder a esta página.");
+      navigate("/login");
+    }
+  }, [navigate]);
+
+  // Función para formatear la fecha
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   useEffect(() => {
     const fetchTestimonials = async () => {
@@ -44,8 +66,8 @@ const TestimonialsPage: React.FC = () => {
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
-    if (!formData.author) newErrors.author = "El autor es obligatorio";
-    if (!formData.comment) newErrors.comment = "El comentario es obligatorio";
+    if (!formData.name) newErrors.name = "El nombre es obligatorio";
+    if (!formData.message) newErrors.message = "El mensaje es obligatorio";
     if (!formData.rating || formData.rating < 1 || formData.rating > 5)
       newErrors.rating = "La calificación debe estar entre 1 y 5";
     setErrors(newErrors);
@@ -60,22 +82,25 @@ const TestimonialsPage: React.FC = () => {
     try {
       if (formData.id) {
         await updateTestimonial(formData.id, {
-          author: formData.author,
-          comment: formData.comment,
+          name: formData.name,
+          message: formData.message,
           rating: formData.rating,
         });
+        setSuccess("Testimonio actualizado exitosamente");
       } else {
         await createTestimonial({
-          author: formData.author,
-          comment: formData.comment,
+          name: formData.name,
+          message: formData.message,
           rating: formData.rating,
         });
+        setSuccess("Testimonio creado exitosamente");
       }
       const data = await getTestimonials();
       setTestimonials(data);
       setModalOpen(false);
-      setFormData({ author: "", comment: "", rating: 5 });
+      setFormData({ name: "", message: "", rating: 5 });
       setErrors({});
+      setTimeout(() => setSuccess(null), 3000); // Limpiar mensaje de éxito después de 3 segundos
     } catch (err) {
       setError("Error al guardar testimonio");
     } finally {
@@ -89,8 +114,15 @@ const TestimonialsPage: React.FC = () => {
       await toggleTestimonialVisibility(id);
       const data = await getTestimonials();
       setTestimonials(data);
+      setSuccess("Visibilidad del testimonio actualizada exitosamente");
+      setTimeout(() => setSuccess(null), 3000); // Limpiar mensaje de éxito
     } catch (err) {
-      setError("Error al cambiar visibilidad");
+      if (err instanceof Error && err.message.includes("Sesión expirada")) {
+        localStorage.removeItem("jwt");
+        navigate("/login");
+      } else {
+        setError("Error al cambiar visibilidad");
+      }
     } finally {
       setLoading(false);
     }
@@ -103,8 +135,14 @@ const TestimonialsPage: React.FC = () => {
       const data = await getTestimonials();
       setTestimonials(data);
       setDeleteModal(null);
+      toast.success("Testimonio eliminado exitosamente", { autoClose: 3000 });
     } catch (err) {
-      setError("Error al eliminar testimonio");
+      if (err instanceof Error && err.message.includes("Sesión expirada")) {
+        localStorage.removeItem("jwt");
+        navigate("/login");
+      } else {
+        toast.error("Error al eliminar testimonio");
+      }
     } finally {
       setLoading(false);
     }
@@ -181,6 +219,25 @@ const TestimonialsPage: React.FC = () => {
           <span>{error}</span>
         </div>
       )}
+      {success && (
+        <div className="mb-4 p-4 rounded-lg bg-green-100 text-green-800 flex items-center space-x-3 shadow-sm">
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          <span>{success}</span>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {testimonials.map((testimonial) => (
           <div
@@ -190,12 +247,12 @@ const TestimonialsPage: React.FC = () => {
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mr-4">
                 <span className="text-indigo-600 font-semibold">
-                  {testimonial.author.charAt(0)}
+                  {testimonial.name.charAt(0)}
                 </span>
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">
-                  {testimonial.author}
+                  {testimonial.name}
                 </h3>
                 <p className="text-sm text-gray-500">Cliente</p>
               </div>
@@ -204,8 +261,8 @@ const TestimonialsPage: React.FC = () => {
                   onClick={() => {
                     setFormData({
                       id: testimonial.id,
-                      author: testimonial.author,
-                      comment: testimonial.comment,
+                      name: testimonial.name,
+                      message: testimonial.message,
                       rating: testimonial.rating,
                     });
                     setModalOpen(true);
@@ -232,7 +289,7 @@ const TestimonialsPage: React.FC = () => {
                   onClick={() =>
                     setDeleteModal({
                       id: testimonial.id,
-                      author: testimonial.author,
+                      name: testimonial.name,
                     })
                   }
                   className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
@@ -256,7 +313,7 @@ const TestimonialsPage: React.FC = () => {
               </div>
             </div>
             <p className="text-gray-600 mb-4 line-clamp-3">
-              {testimonial.comment}
+              {testimonial.message}
             </p>
             <div className="flex items-center justify-between">
               <div className="flex text-amber-400">
@@ -276,18 +333,20 @@ const TestimonialsPage: React.FC = () => {
                   </svg>
                 ))}
               </div>
-              <span className="text-sm text-gray-500">{testimonial.date}</span>
+              <span className="text-sm text-gray-500">
+                {formatDate(testimonial.createdAt)}
+              </span>
             </div>
             <div className="mt-4">
               <button
                 onClick={() => handleToggleVisibility(testimonial.id)}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                  testimonial.visible
+                  testimonial.enable
                     ? "bg-green-100 text-green-800 hover:bg-green-200"
                     : "bg-gray-100 text-gray-800 hover:bg-gray-200"
                 }`}
               >
-                {testimonial.visible ? "Ocultar" : "Mostrar"}
+                {testimonial.enable ? "Ocultar" : "Mostrar"}
               </button>
             </div>
           </div>
@@ -298,7 +357,7 @@ const TestimonialsPage: React.FC = () => {
           isOpen={modalOpen}
           onClose={() => {
             setModalOpen(false);
-            setFormData({ author: "", comment: "", rating: 5 });
+            setFormData({ name: "", message: "", rating: 5 });
             setErrors({});
           }}
           title={formData.id ? "Editar Testimonio" : "Nuevo Testimonio"}
@@ -306,20 +365,20 @@ const TestimonialsPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Autor
+                Nombre
               </label>
               <input
                 type="text"
-                value={formData.author}
+                value={formData.name}
                 onChange={(e) =>
-                  setFormData({ ...formData, author: e.target.value })
+                  setFormData({ ...formData, name: e.target.value })
                 }
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
-                  errors.author ? "border-red-500" : "border-gray-300"
+                  errors.name ? "border-red-500" : "border-gray-300"
                 }`}
                 disabled={loading}
               />
-              {errors.author && (
+              {errors.name && (
                 <p className="mt-1 text-sm text-red-600 flex items-center">
                   <svg
                     className="w-4 h-4 mr-1"
@@ -335,26 +394,26 @@ const TestimonialsPage: React.FC = () => {
                       d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  {errors.author}
+                  {errors.name}
                 </p>
               )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Comentario
+                Mensaje
               </label>
               <textarea
-                value={formData.comment}
+                value={formData.message}
                 onChange={(e) =>
-                  setFormData({ ...formData, comment: e.target.value })
+                  setFormData({ ...formData, message: e.target.value })
                 }
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
-                  errors.comment ? "border-red-500" : "border-gray-300"
+                  errors.message ? "border-red-500" : "border-gray-300"
                 }`}
                 rows={4}
                 disabled={loading}
               ></textarea>
-              {errors.comment && (
+              {errors.message && (
                 <p className="mt-1 text-sm text-red-600 flex items-center">
                   <svg
                     className="w-4 h-4 mr-1"
@@ -370,7 +429,7 @@ const TestimonialsPage: React.FC = () => {
                       d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  {errors.comment}
+                  {errors.message}
                 </p>
               )}
             </div>
@@ -422,7 +481,7 @@ const TestimonialsPage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setModalOpen(false);
-                  setFormData({ author: "", comment: "", rating: 5 });
+                  setFormData({ name: "", message: "", rating: 5 });
                   setErrors({});
                 }}
                 className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -472,8 +531,7 @@ const TestimonialsPage: React.FC = () => {
           <div className="space-y-6">
             <p className="text-gray-600">
               ¿Estás seguro de eliminar el testimonio de{" "}
-              <strong>{deleteModal.author}</strong>? Esta acción es
-              irreversible.
+              <strong>{deleteModal.name}</strong>? Esta acción es irreversible.
             </p>
             <div className="flex justify-end space-x-3">
               <button
