@@ -100,8 +100,10 @@ const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Configuración General</h1>
+    <div className="p-6 bg-gray-100">
+      <h1 className="text-3xl font-bold text-gray-800 mb-8">
+        Configuración General
+      </h1>
       {loading && !config && !contactInfo && (
         <div className="text-center">
           <svg
@@ -170,7 +172,10 @@ const SettingsPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6 bg-orange-50">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <FontAwesomeIcon icon={faUpload} className="text-orange-500 mr-3 text-lg" />
+                <FontAwesomeIcon
+                  icon={faUpload}
+                  className="text-orange-500 mr-3 text-lg"
+                />
                 Gestión del Logo
               </h2>
             </div>
@@ -276,13 +281,18 @@ const SettingsPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6 bg-teal-50">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <FontAwesomeIcon icon={faLocationCrosshairs} className="text-teal-600 mr-3 text-lg" />
+                <FontAwesomeIcon
+                  icon={faLocationCrosshairs}
+                  className="text-teal-600 mr-3 text-lg"
+                />
                 Información de Contacto
               </h2>
             </div>
             <div className="p-6">
               <form
-                onSubmit={(e) => handleContactSubmit(e, "Información de Contacto")}
+                onSubmit={(e) =>
+                  handleContactSubmit(e, "Información de Contacto")
+                }
                 className="space-y-6"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -304,7 +314,7 @@ const SettingsPage: React.FC = () => {
                           })
                         }
                         className="rounded-none rounded-r-lg border border-gray-200 text-gray-900 flex-1 text-sm p-3 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors"
-                        placeholder="809-555-1234"
+                        placeholder="809-555-5678"
                         disabled={loading}
                       />
                     </div>
@@ -394,7 +404,10 @@ const SettingsPage: React.FC = () => {
                         className="bg-white text-teal-600 px-4 py-2.5 rounded-lg shadow-md flex items-center space-x-2 hover:bg-teal-50 transition-colors disabled:opacity-50"
                         disabled={loading}
                       >
-                        <FontAwesomeIcon icon={faLocationCrosshairs} className="text-lg" />
+                        <FontAwesomeIcon
+                          icon={faLocationCrosshairs}
+                          className="text-lg"
+                        />
                         <span>Usar mi ubicación</span>
                       </button>
                     </div>
@@ -496,7 +509,10 @@ const SettingsPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6 bg-indigo-50">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <FontAwesomeIcon icon={faInstagram} className="text-indigo-600 mr-3 text-lg" />
+                <FontAwesomeIcon
+                  icon={faInstagram}
+                  className="text-indigo-600 mr-3 text-lg"
+                />
                 Redes Sociales
               </h2>
             </div>
@@ -511,7 +527,10 @@ const SettingsPage: React.FC = () => {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                      <FontAwesomeIcon icon={faInstagram} className="text-indigo-500 text-lg" />
+                      <FontAwesomeIcon
+                        icon={faInstagram}
+                        className="text-indigo-500 text-lg"
+                      />
                     </div>
                     <input
                       type="text"
@@ -534,7 +553,10 @@ const SettingsPage: React.FC = () => {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                      <FontAwesomeIcon icon={faFacebookF} className="text-indigo-500 text-lg" />
+                      <FontAwesomeIcon
+                        icon={faFacebookF}
+                        className="text-indigo-500 text-lg"
+                      />
                     </div>
                     <input
                       type="text"
@@ -557,7 +579,10 @@ const SettingsPage: React.FC = () => {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                      <FontAwesomeIcon icon={faTwitter} className="text-indigo-500 text-lg" />
+                      <FontAwesomeIcon
+                        icon={faTwitter}
+                        className="text-indigo-500 text-lg"
+                      />
                     </div>
                     <input
                       type="text"
@@ -580,7 +605,10 @@ const SettingsPage: React.FC = () => {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4">
-                      <FontAwesomeIcon icon={faTiktok} className="text-indigo-500 text-lg" />
+                      <FontAwesomeIcon
+                        icon={faTiktok}
+                        className="text-indigo-500 text-lg"
+                      />
                     </div>
                     <input
                       type="text"
@@ -636,7 +664,10 @@ const SettingsPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6 bg-cream-50">
               <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-                <FontAwesomeIcon icon={faClock} className="text-orange-500 mr-3 text-lg" />
+                <FontAwesomeIcon
+                  icon={faClock}
+                  className="text-orange-500 mr-3 text-lg"
+                />
                 Horario de Atención
               </h2>
             </div>
@@ -764,11 +795,15 @@ const SettingsPage: React.FC = () => {
           {/* Política de Privacidad */}
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6 bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800">Política de Privacidad</h2>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Política de Privacidad
+              </h2>
             </div>
             <div className="p-6">
               <form
-                onSubmit={(e) => handleConfigSubmit(e, "Política de Privacidad")}
+                onSubmit={(e) =>
+                  handleConfigSubmit(e, "Política de Privacidad")
+                }
               >
                 <textarea
                   value={config?.privacyPolicy || ""}
@@ -821,11 +856,15 @@ const SettingsPage: React.FC = () => {
           {/* Términos y Condiciones */}
           <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <div className="p-6 bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800">Términos y Condiciones</h2>
+              <h2 className="text-xl font-semibold text-gray-800">
+                Términos y Condiciones
+              </h2>
             </div>
             <div className="p-6">
               <form
-                onSubmit={(e) => handleConfigSubmit(e, "Términos y Condiciones")}
+                onSubmit={(e) =>
+                  handleConfigSubmit(e, "Términos y Condiciones")
+                }
               >
                 <textarea
                   value={config?.termsAndConditions || ""}

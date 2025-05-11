@@ -98,7 +98,7 @@ const GalleryPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="mx-auto w-full max-w-4xl rounded-xl border border-gray-200 bg-white shadow-lg p-6">
+      <div className="max-w-7xl mx-auto p-6">
         <div className="flex animate-pulse space-x-4">
           <div className="w-12 h-12 rounded-full bg-gray-200"></div>
           <div className="flex-1 space-y-6 py-1">
@@ -117,7 +117,7 @@ const GalleryPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto p-6">
       {alert && (
         <Alert
           type={alert.type as "success" | "error"}

@@ -2,7 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { GalleryProvider } from "./context/GalleryContext";
-import { AlertProvider } from "./components/common/AlertManager"; // <-- NUEVO
+import { AlertProvider } from "./components/common/AlertManager";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
@@ -16,7 +16,6 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 
-// Componente para proteger las rutas que requieren autenticación y, opcionalmente, rol de administrador
 const ProtectedRoute: React.FC<{
   children: React.ReactNode;
   requireAdmin?: boolean;
@@ -50,11 +49,11 @@ const App: React.FC = () => {
               path="/*"
               element={
                 <ProtectedRoute>
-                  <div className="min-h-screen bg-gray-100 flex">
+                  <div className="flex h-screen bg-gray-100">
                     <Sidebar />
-                    <div className="flex-1 flex flex-col min-h-screen">
+                    <div className="flex-1 flex flex-col">
                       <Header />
-                      <main className="flex-1 overflow-y-auto bg-gray-100">
+                      <main className="flex-1 overflow-y-auto p-6">
                         <Routes>
                           <Route path="/" element={<DashboardPage />} />
                           <Route

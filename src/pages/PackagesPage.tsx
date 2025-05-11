@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import {
   getPackages,
@@ -28,8 +29,6 @@ const PackagesPage: React.FC = () => {
     null
   );
 
-  console.log("PackagesPage rendered", { isAuthenticated, isAdmin });
-
   useEffect(() => {
     let isMounted = true;
     let timeoutId: NodeJS.Timeout | null = null;
@@ -39,7 +38,6 @@ const PackagesPage: React.FC = () => {
       setLoading(true);
       try {
         const data = await getPackages();
-        //console.log("Packages loaded:", JSON.stringify(data, null, 2));
         setPackages(data);
       } catch (error: unknown) {
         if (isMounted) {
@@ -89,7 +87,6 @@ const PackagesPage: React.FC = () => {
   }) => {
     setIsSubmitting(true);
     try {
-      // Validar price
       const validatedPrice =
         isNaN(data.price) || data.price <= 0 ? 0 : data.price;
       const validatedData = { ...data, price: validatedPrice };
@@ -118,7 +115,6 @@ const PackagesPage: React.FC = () => {
       setSelectedPackage(null);
       setAlert({ type: "success", message: "Paquete procesado con éxito" });
     } catch (error: unknown) {
-      console.error("Error in handleSubmit:", error);
       const message =
         error instanceof ApiError
           ? error.message
@@ -172,7 +168,7 @@ const PackagesPage: React.FC = () => {
 
   if (loading && !packages.length) {
     return (
-      <div className="mx-auto w-full max-w-4xl rounded-xl border border-gray-200 bg-white shadow-lg p-6">
+      <div className="max-w-7xl mx-auto p-6">
         <div className="flex animate-pulse space-x-4">
           <div className="w-12 h-12 rounded-full bg-gray-200"></div>
           <div className="flex-1 space-y-6 py-1">
@@ -191,7 +187,7 @@ const PackagesPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto p-6">
       {alert && (
         <Alert
           type={alert.type as "success" | "error"}

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-  import { toast } from "react-toastify";
+import { toast } from "react-toastify";
 import type { Testimonial } from "../types/testimonial";
 import {
   getTestimonials,
@@ -16,7 +16,7 @@ const TestimonialsPage: React.FC = () => {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null); // Nuevo estado para mensajes de éxito
+  const [success, setSuccess] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{
     id: number;
@@ -31,7 +31,6 @@ const TestimonialsPage: React.FC = () => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const navigate = useNavigate();
 
-  // Verificar autenticación al cargar el componente
   useEffect(() => {
     const token = localStorage.getItem("jwt");
     if (!token) {
@@ -40,7 +39,6 @@ const TestimonialsPage: React.FC = () => {
     }
   }, [navigate]);
 
-  // Función para formatear la fecha
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("es-ES", {
       day: "2-digit",
@@ -100,7 +98,7 @@ const TestimonialsPage: React.FC = () => {
       setModalOpen(false);
       setFormData({ name: "", message: "", rating: 5 });
       setErrors({});
-      setTimeout(() => setSuccess(null), 3000); // Limpiar mensaje de éxito después de 3 segundos
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       setError("Error al guardar testimonio");
     } finally {
@@ -115,7 +113,7 @@ const TestimonialsPage: React.FC = () => {
       const data = await getTestimonials();
       setTestimonials(data);
       setSuccess("Visibilidad del testimonio actualizada exitosamente");
-      setTimeout(() => setSuccess(null), 3000); // Limpiar mensaje de éxito
+      setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       if (err instanceof Error && err.message.includes("Sesión expirada")) {
         localStorage.removeItem("jwt");
@@ -149,7 +147,7 @@ const TestimonialsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
           Gestión de Testimonios
