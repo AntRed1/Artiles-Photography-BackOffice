@@ -36,7 +36,5 @@ export const hasAdminRole = (payload: JwtPayload | null): boolean => {
   if (!payload || !payload.roles) {
     return false;
   }
-  return (
-    payload.roles.includes("ADMIN") || payload.roles.includes("ROLE_ADMIN")
-  );
+  return payload.roles.includes("ROLE_ADMIN");
 };

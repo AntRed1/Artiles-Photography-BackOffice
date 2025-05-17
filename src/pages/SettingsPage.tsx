@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -13,52 +14,115 @@ import {
   faTwitter,
   faTiktok,
 } from "@fortawesome/free-brands-svg-icons";
-import type { Config, ContactInfo } from "../types/config";
+import type { Config, ContactInfo, LegalResponse } from "../types/config";
 import {
   getConfig,
   updateConfig,
+  updateConfigWithLogo,
   getContactInfo,
   updateContactInfo,
+  createContactInfo,
+  deleteContactInfo,
+  getLegalByType,
+  updateLegal,
 } from "../services/configService";
+import { useAlert } from "../components/common/AlertManager";
+import api from "../services/api";
 
 const SettingsPage: React.FC = () => {
   const [config, setConfig] = useState<Config | null>(null);
   const [contactInfo, setContactInfo] = useState<ContactInfo | null>(null);
+  const [privacyPolicy, setPrivacyPolicy] = useState<LegalResponse | null>(
+    null
+  );
+  const [termsAndConditions, setTermsAndConditions] =
+    useState<LegalResponse | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { showAlert } = useAlert();
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [configData, contactData] = await Promise.all([
-          getConfig(),
-          getContactInfo(),
-        ]);
+        const [configData, contactData, privacyData, termsData] =
+          await Promise.all([
+            getConfig(),
+            getContactInfo(),
+            getLegalByType("PRIVACY").catch((err) => {
+              console.warn("No se encontró PRIVACY:", err.message);
+              return null;
+            }),
+            getLegalByType("TERMS").catch((err) => {
+              console.warn("No se encontró TERMS:", err.message);
+              return null;
+            }),
+          ]);
         setConfig(configData);
         setContactInfo(contactData);
-      } catch (err) {
-        setError("Error al cargar configuración");
+        setPrivacyPolicy(privacyData);
+        setTermsAndConditions(termsData);
+      } catch (err: any) {
+        setError(
+          `Error al cargar configuración: ${err.message || "Error desconocido"}`
+        );
+        showAlert(
+          "error",
+          `Error al cargar configuración: ${err.message || "Error desconocido"}`
+        );
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, []);
+  }, [showAlert]);
 
   const handleConfigSubmit = async (e: React.FormEvent, section: string) => {
     e.preventDefault();
     if (!config) return;
     setLoading(true);
     try {
-      const updated = await updateConfig(config.id, config);
+      let updated: Config;
+      if (logoFile) {
+        console.log(
+          "Enviando PUT /api/admin/config/",
+          config.id,
+          "con archivo"
+        );
+        updated = await updateConfigWithLogo(config.id, logoFile, config);
+      } else {
+        console.log(
+          "Enviando PUT /api/admin/config/",
+          config.id,
+          "sin archivo"
+        );
+        updated = await updateConfig(config.id, config);
+      }
       setConfig(updated);
-      setSuccess(`Cambios en ${section} guardados exitosamente`);
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(`Error al guardar ${section.toLowerCase()}`);
+      setLogoFile(null); // Reset logo file after successful upload
+      showAlert(
+        "success",
+        `Cambios en ${section} guardados exitosamente`,
+        3000
+      );
+    } catch (err: any) {
+      console.error("Error en handleConfigSubmit:", err);
+      let errorMessage = err.message || "Error desconocido";
+      if (err.message.includes("Cloudinary")) {
+        errorMessage = "Error al subir el logo a Cloudinary. Intenta de nuevo.";
+      } else if (err.status === 403) {
+        errorMessage =
+          "Acceso denegado. Verifica que tienes permisos de administrador.";
+      } else if (err.status === 500) {
+        errorMessage =
+          "Error del servidor al actualizar la configuración. Contacta al soporte.";
+      }
+      setError(`Error al guardar ${section.toLowerCase()}: ${errorMessage}`);
+      showAlert(
+        "error",
+        `Error al guardar ${section.toLowerCase()}: ${errorMessage}`
+      );
     } finally {
       setLoading(false);
     }
@@ -69,12 +133,162 @@ const SettingsPage: React.FC = () => {
     if (!contactInfo) return;
     setLoading(true);
     try {
+      console.log(
+        "Enviando PUT /api/contact-info/admin/",
+        contactInfo.id,
+        contactInfo
+      );
       const updated = await updateContactInfo(contactInfo.id, contactInfo);
       setContactInfo(updated);
-      setSuccess(`Cambios en ${section} guardados exitosamente`);
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError(`Error al guardar ${section.toLowerCase()}`);
+      showAlert(
+        "success",
+        `Cambios en ${section} guardados exitosamente`,
+        3000
+      );
+    } catch (err: any) {
+      console.error("Error en handleContactSubmit:", err);
+      setError(
+        `Error al guardar ${section.toLowerCase()}: ${
+          err.message || "Error desconocido"
+        }`
+      );
+      showAlert(
+        "error",
+        `Error al guardar ${section.toLowerCase()}: ${
+          err.message || "Error desconocido"
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLegalSubmit = async (
+    e: React.FormEvent,
+    section: string,
+    legal: LegalResponse | null
+  ) => {
+    e.preventDefault();
+    if (!legal) return;
+    setLoading(true);
+    try {
+      console.log(`Enviando PUT /api/legal/admin/${legal.id}`, legal);
+      const updated = await updateLegal(legal.id, {
+        type: legal.type,
+        content: legal.content,
+      });
+      if (legal.type === "PRIVACY") {
+        setPrivacyPolicy(updated);
+      } else if (legal.type === "TERMS") {
+        setTermsAndConditions(updated);
+      }
+      showAlert(
+        "success",
+        `Cambios en ${section} guardados exitosamente`,
+        3000
+      );
+    } catch (err: any) {
+      console.error(`Error en handleLegalSubmit para ${section}:`, err);
+      let errorMessage = err.message || "Error desconocido";
+      if (err.status === 403) {
+        errorMessage =
+          "Acceso denegado. Verifica que tienes permisos de administrador.";
+      } else if (err.status === 500) {
+        errorMessage =
+          "Error del servidor al actualizar el documento. Contacta al soporte.";
+      }
+      setError(`Error al guardar ${section.toLowerCase()}: ${errorMessage}`);
+      showAlert(
+        "error",
+        `Error al guardar ${section.toLowerCase()}: ${errorMessage}`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateLegal = async (type: string, section: string) => {
+    setLoading(true);
+    try {
+      const response = await api<LegalResponse>("/legal/admin", "POST", {
+        type,
+        content: `Contenido inicial para ${type}`,
+      });
+      if (type === "PRIVACY") {
+        setPrivacyPolicy(response);
+      } else if (type === "TERMS") {
+        setTermsAndConditions(response);
+      }
+      showAlert("success", `Documento ${section} creado exitosamente`, 3000);
+    } catch (err: any) {
+      console.error(`Error al crear ${section}:`, err);
+      setError(
+        `Error al crear ${section.toLowerCase()}: ${
+          err.message || "Error desconocido"
+        }`
+      );
+      showAlert(
+        "error",
+        `Error al crear ${section.toLowerCase()}: ${
+          err.message || "Error desconocido"
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateContactInfo = async () => {
+    if (!contactInfo) return;
+    setLoading(true);
+    try {
+      console.log("Enviando POST /api/contact-info/admin", contactInfo);
+      const newContactInfo = await createContactInfo(contactInfo);
+      setContactInfo(newContactInfo);
+      showAlert("success", "Información de contacto creada exitosamente", 3000);
+    } catch (err: any) {
+      console.error("Error en handleCreateContactInfo:", err);
+      setError(
+        `Error al crear información de contacto: ${
+          err.message || "Error desconocido"
+        }`
+      );
+      showAlert(
+        "error",
+        `Error al crear información de contacto: ${
+          err.message || "Error desconocido"
+        }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteContactInfo = async () => {
+    if (!contactInfo) return;
+    setLoading(true);
+    try {
+      console.log("Enviando DELETE /api/contact-info/admin/", contactInfo.id);
+      await deleteContactInfo(contactInfo.id);
+      setContactInfo(null);
+      showAlert(
+        "success",
+        "Información de contacto eliminada exitosamente",
+        3000
+      );
+    } catch (err: any) {
+      console.error("Error en handleDeleteContactInfo:", err);
+      setError(
+        `Error al eliminar información de contacto: ${
+          err.message || "Error desconocido"
+        }`
+      );
+      showAlert(
+        "error",
+        `Error al eliminar información de contacto: ${
+          err.message || "Error desconocido"
+        }`
+      );
     } finally {
       setLoading(false);
     }
@@ -85,10 +299,12 @@ const SettingsPage: React.FC = () => {
       const file = e.target.files[0];
       if (file.size > 2 * 1024 * 1024) {
         setError("El archivo excede el tamaño máximo de 2MB");
+        showAlert("error", "El archivo excede el tamaño máximo de 2MB");
         return;
       }
       if (!["image/png", "image/jpeg", "image/svg+xml"].includes(file.type)) {
         setError("Solo se permiten archivos PNG, JPG o SVG");
+        showAlert("error", "Solo se permiten archivos PNG, JPG o SVG");
         return;
       }
       setLogoFile(file);
@@ -100,34 +316,38 @@ const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-100">
+    <div className="p-6 bg-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold text-gray-800 mb-8">
         Configuración General
       </h1>
-      {loading && !config && !contactInfo && (
-        <div className="text-center">
-          <svg
-            className="animate-spin h-10 w-10 text-orange-500 mx-auto"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
-            />
-          </svg>
-        </div>
-      )}
+      {loading &&
+        !config &&
+        !contactInfo &&
+        !privacyPolicy &&
+        !termsAndConditions && (
+          <div className="text-center">
+            <svg
+              className="animate-spin h-10 w-10 text-orange-500 mx-auto"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+              />
+            </svg>
+          </div>
+        )}
       {error && (
         <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-700 flex items-center space-x-3 shadow-sm">
           <svg
@@ -145,25 +365,6 @@ const SettingsPage: React.FC = () => {
             />
           </svg>
           <span>{error}</span>
-        </div>
-      )}
-      {success && (
-        <div className="mb-6 p-4 rounded-xl bg-green-50 text-green-700 flex items-center space-x-3 shadow-sm">
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-          <span>{success}</span>
         </div>
       )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -221,10 +422,7 @@ const SettingsPage: React.FC = () => {
                       type="text"
                       value={config?.logoAltText || ""}
                       onChange={(e) =>
-                        setConfig({
-                          ...config!,
-                          logoAltText: e.target.value,
-                        })
+                        setConfig({ ...config!, logoAltText: e.target.value })
                       }
                       className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors"
                       placeholder="Artiles Photography Studio Logo"
@@ -351,10 +549,7 @@ const SettingsPage: React.FC = () => {
                     type="email"
                     value={contactInfo?.email || ""}
                     onChange={(e) =>
-                      setContactInfo({
-                        ...contactInfo!,
-                        email: e.target.value,
-                      })
+                      setContactInfo({ ...contactInfo!, email: e.target.value })
                     }
                     className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors"
                     placeholder="contacto@artilesphotography.com"
@@ -390,9 +585,30 @@ const SettingsPage: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      URL de Google Maps
+                    </label>
+                    <input
+                      type="text"
+                      value={contactInfo?.googleMapsUrl || ""}
+                      onChange={(e) =>
+                        setContactInfo({
+                          ...contactInfo!,
+                          googleMapsUrl: e.target.value,
+                        })
+                      }
+                      className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors"
+                      placeholder="https://www.google.com/maps/embed?pb=..."
+                      disabled={loading}
+                    />
+                  </div>
                   <div className="relative w-full h-[350px] bg-gray-100 rounded-xl overflow-hidden shadow-inner">
                     <iframe
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3784.225307807289!2d-69.93663492414066!3d18.47150796791757!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8ea561f4a5b48f3d%3A0x9c5b0c6c3e9397a4!2sAv.%20Winston%20Churchill%2C%20Santo%20Domingo!5e0!3m2!1sen!2sdo!4v1683244669374!5m2!1sen!2sdo"
+                      src={
+                        contactInfo?.googleMapsUrl ||
+                        "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3784.225307807289!2d-69.93663492414066!3d18.47150796791757!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8ea561f4a5b48f3d%3A0x9c5b0c6c3e9397a4!2sAv.%20Winston%20Churchill%2C%20Santo%20Domingo!5e0!3m2!1sen!2sdo!4v1683244669374!5m2!1sen!2sdo"
+                      }
                       className="absolute inset-0 w-full h-full border-none"
                       allowFullScreen
                       loading="lazy"
@@ -410,44 +626,6 @@ const SettingsPage: React.FC = () => {
                         />
                         <span>Usar mi ubicación</span>
                       </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Latitud
-                      </label>
-                      <input
-                        type="text"
-                        value={contactInfo?.latitude || ""}
-                        onChange={(e) =>
-                          setContactInfo({
-                            ...contactInfo!,
-                            latitude: e.target.value,
-                          })
-                        }
-                        className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors"
-                        readOnly
-                        disabled={loading}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Longitud
-                      </label>
-                      <input
-                        type="text"
-                        value={contactInfo?.longitude || ""}
-                        onChange={(e) =>
-                          setContactInfo({
-                            ...contactInfo!,
-                            longitude: e.target.value,
-                          })
-                        }
-                        className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors"
-                        readOnly
-                        disabled={loading}
-                      />
                     </div>
                   </div>
                   <div>
@@ -469,7 +647,7 @@ const SettingsPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                <div className="pt-6">
+                <div className="pt-6 flex space-x-4">
                   <button
                     type="submit"
                     disabled={loading}
@@ -498,6 +676,22 @@ const SettingsPage: React.FC = () => {
                       </svg>
                     )}
                     <span>Guardar Cambios</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCreateContactInfo}
+                    disabled={loading || !!contactInfo}
+                    className="bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 transition-transform hover:scale-105 disabled:opacity-50"
+                  >
+                    <span>Crear Nuevo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteContactInfo}
+                    disabled={loading || !contactInfo}
+                    className="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 transition-transform hover:scale-105 disabled:opacity-50"
+                  >
+                    <span>Eliminar</span>
                   </button>
                 </div>
               </form>
@@ -721,10 +915,7 @@ const SettingsPage: React.FC = () => {
                     <select
                       value={config?.responseTime || ""}
                       onChange={(e) =>
-                        setConfig({
-                          ...config!,
-                          responseTime: e.target.value,
-                        })
+                        setConfig({ ...config!, responseTime: e.target.value })
                       }
                       className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors"
                       disabled={loading}
@@ -800,56 +991,78 @@ const SettingsPage: React.FC = () => {
               </h2>
             </div>
             <div className="p-6">
-              <form
-                onSubmit={(e) =>
-                  handleConfigSubmit(e, "Política de Privacidad")
-                }
-              >
-                <textarea
-                  value={config?.privacyPolicy || ""}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config!,
-                      privacyPolicy: e.target.value,
-                    })
+              {privacyPolicy ? (
+                <form
+                  onSubmit={(e) =>
+                    handleLegalSubmit(
+                      e,
+                      "Política de Privacidad",
+                      privacyPolicy
+                    )
                   }
-                  className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors"
-                  rows={8}
-                  placeholder="En Artiles Photography Studio, respetamos su privacidad..."
-                  disabled={loading}
-                ></textarea>
-                <div className="pt-6">
-                  <button
-                    type="submit"
+                >
+                  <textarea
+                    value={privacyPolicy.content || ""}
+                    onChange={(e) =>
+                      setPrivacyPolicy({
+                        ...privacyPolicy,
+                        content: e.target.value,
+                      })
+                    }
+                    className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors"
+                    rows={8}
+                    placeholder="En Artiles Photography Studio, respetamos su privacidad..."
                     disabled={loading}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 transition-transform hover:scale-105 disabled:opacity-50"
+                  ></textarea>
+                  <div className="pt-6">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 transition-transform hover:scale-105 disabled:opacity-50"
+                    >
+                      {loading && (
+                        <svg
+                          className="animate-spin h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                          />
+                        </svg>
+                      )}
+                      <span>Guardar Cambios</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-4">
+                    No se encontró una política de privacidad.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCreateLegal("PRIVACY", "Política de Privacidad")
+                    }
+                    disabled={loading}
+                    className="bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 mx-auto transition-transform hover:scale-105 disabled:opacity-50"
                   >
-                    {loading && (
-                      <svg
-                        className="animate-spin h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
-                        />
-                      </svg>
-                    )}
-                    <span>Guardar Cambios</span>
+                    <span>Crear Política de Privacidad</span>
                   </button>
                 </div>
-              </form>
+              )}
             </div>
           </div>
 
@@ -861,56 +1074,78 @@ const SettingsPage: React.FC = () => {
               </h2>
             </div>
             <div className="p-6">
-              <form
-                onSubmit={(e) =>
-                  handleConfigSubmit(e, "Términos y Condiciones")
-                }
-              >
-                <textarea
-                  value={config?.termsAndConditions || ""}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config!,
-                      termsAndConditions: e.target.value,
-                    })
+              {termsAndConditions ? (
+                <form
+                  onSubmit={(e) =>
+                    handleLegalSubmit(
+                      e,
+                      "Términos y Condiciones",
+                      termsAndConditions
+                    )
                   }
-                  className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors"
-                  rows={8}
-                  placeholder="Al utilizar los servicios de Artiles Photography Studio, usted acepta estos términos..."
-                  disabled={loading}
-                ></textarea>
-                <div className="pt-6">
-                  <button
-                    type="submit"
+                >
+                  <textarea
+                    value={termsAndConditions.content || ""}
+                    onChange={(e) =>
+                      setTermsAndConditions({
+                        ...termsAndConditions,
+                        content: e.target.value,
+                      })
+                    }
+                    className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-colors"
+                    rows={8}
+                    placeholder="Al utilizar los servicios de Artiles Photography Studio, usted acepta estos términos..."
                     disabled={loading}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 transition-transform hover:scale-105 disabled:opacity-50"
+                  ></textarea>
+                  <div className="pt-6">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 transition-transform hover:scale-105 disabled:opacity-50"
+                    >
+                      {loading && (
+                        <svg
+                          className="animate-spin h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                          />
+                        </svg>
+                      )}
+                      <span>Guardar Cambios</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-4">
+                    No se encontraron términos y condiciones.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleCreateLegal("TERMS", "Términos y Condiciones")
+                    }
+                    disabled={loading}
+                    className="bg-green-500 hover:bg-green-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 mx-auto transition-transform hover:scale-105 disabled:opacity-50"
                   >
-                    {loading && (
-                      <svg
-                        className="animate-spin h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
-                        />
-                      </svg>
-                    )}
-                    <span>Guardar Cambios</span>
+                    <span>Crear Términos y Condiciones</span>
                   </button>
                 </div>
-              </form>
+              )}
             </div>
           </div>
         </div>

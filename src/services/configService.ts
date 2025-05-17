@@ -1,41 +1,8 @@
 import api from "./api";
-import type { Config } from "../types/config";
-
-interface ConfigurationResponse {
-  id: number;
-  siteTitle: string;
-  description: string;
-  keywords: string;
-  primaryColor: string;
-  font: string;
-  contact: {
-    whatsapp: string;
-    phone: string;
-    email: string;
-    address: string;
-    latitude: string;
-    longitude: string;
-  };
-  socialMedia: {
-    instagram: string;
-    facebook: string;
-    twitter: string;
-    tiktok: string;
-  };
-}
-
-interface ContactInfoResponse {
-  id: number;
-  whatsapp: string;
-  phone: string;
-  email: string;
-  address: string;
-  latitude: string;
-  longitude: string;
-}
+import type { Config, ContactInfo, LegalResponse } from "../types/config";
 
 export const getConfig = async (): Promise<Config> => {
-  const response = await api<ConfigurationResponse>("/config");
+  const response = await api<Config>("/config");
   return response;
 };
 
@@ -43,27 +10,78 @@ export const updateConfig = async (
   id: number,
   config: Config
 ): Promise<Config> => {
-  const response = await api<ConfigurationResponse>(
-    `/admin/config/${id}`,
+  const response = await api<Config>(
+    `/admin/config/${id}/no-file`,
     "PUT",
     config
   );
   return response;
 };
 
-export const getContactInfo = async (): Promise<ContactInfoResponse> => {
-  const response = await api<ContactInfoResponse>("/contact-info");
+export const updateConfigWithLogo = async (
+  id: number,
+  logoFile: File,
+  config: Config
+): Promise<Config> => {
+  const formData = new FormData();
+  formData.append("logoFile", logoFile);
+  if (config.logoAltText) formData.append("logoAltText", config.logoAltText);
+  if (config.heroBackgroundImage)
+    formData.append("heroBackgroundImage", config.heroBackgroundImage);
+  if (config.availabilityMessage)
+    formData.append("availabilityMessage", config.availabilityMessage);
+  if (config.responseTime) formData.append("responseTime", config.responseTime);
+  formData.append(
+    "notificationsEnabled",
+    String(config.notificationsEnabled || false)
+  );
+
+  const response = await api<Config>(`/admin/config/${id}`, "PUT", formData);
+  return response;
+};
+
+export const getContactInfo = async (): Promise<ContactInfo> => {
+  const response = await api<ContactInfo>("/contact-info");
   return response;
 };
 
 export const updateContactInfo = async (
   id: number,
-  contactInfo: ContactInfoResponse
-): Promise<ContactInfoResponse> => {
-  const response = await api<ContactInfoResponse>(
-    `/admin/contact-info/${id}`,
+  contactInfo: ContactInfo
+): Promise<ContactInfo> => {
+  const response = await api<ContactInfo>(
+    `/contact-info/admin/${id}`,
     "PUT",
     contactInfo
   );
+  console.log("Respuesta de updateContactInfo:", response);
+  return response;
+};
+
+export const createContactInfo = async (
+  contactInfo: ContactInfo
+): Promise<ContactInfo> => {
+  const response = await api<ContactInfo>(
+    "/contact-info/admin",
+    "POST",
+    contactInfo
+  );
+  return response;
+};
+
+export const deleteContactInfo = async (id: number): Promise<void> => {
+  await api(`/contact-info/admin/${id}`, "DELETE");
+};
+
+export const getLegalByType = async (type: string): Promise<LegalResponse> => {
+  const response = await api<LegalResponse>(`/legal/type/${type}`);
+  return response;
+};
+
+export const updateLegal = async (
+  id: number,
+  legal: { type: string; content: string }
+): Promise<LegalResponse> => {
+  const response = await api<LegalResponse>(`/legal/admin/${id}`, "PUT", legal);
   return response;
 };

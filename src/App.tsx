@@ -23,10 +23,12 @@ const ProtectedRoute: React.FC<{
   const { isAuthenticated, isAdmin } = useAuth();
 
   if (!isAuthenticated) {
+    console.log("No autenticado, redirigiendo a /login");
     return <Navigate to="/login" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
+    console.log("No es administrador, redirigiendo a /unauthorized");
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -81,7 +83,14 @@ const App: React.FC = () => {
                             path="/testimonials"
                             element={<TestimonialsPage />}
                           />
-                          <Route path="/settings" element={<SettingsPage />} />
+                          <Route
+                            path="/settings"
+                            element={
+                              <ProtectedRoute requireAdmin>
+                                <SettingsPage />
+                              </ProtectedRoute>
+                            }
+                          />
                         </Routes>
                       </main>
                     </div>

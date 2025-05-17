@@ -1,5 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+ 
 import React, { useState, useEffect } from "react";
 import type { Package } from "../../types/package";
 import Alert from "../common/Alert";
@@ -114,8 +113,8 @@ const PackageForm: React.FC<PackageFormProps> = ({
     try {
       await onSubmit({
         ...formData,
-        price: formData.price || 0, // Asegurar que price no sea NaN
-        features: formData.features.filter((f) => f.trim() !== ""), // Filtrar características vacías
+        price: formData.price || 0,
+        features: formData.features.filter((f) => f.trim() !== ""),
       });
       setAlert({
         type: "success",
@@ -139,7 +138,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-h-[80vh] overflow-y-auto p-4 sm:p-6 space-y-6">
       {alert && (
         <Alert
           type={alert.type as "success" | "error"}
@@ -153,7 +152,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Vista previa de la imagen
             </label>
-            <div className="relative w-full h-48 sm:h-64 bg-gray-100 rounded-lg overflow-hidden shadow-sm">
+            <div className="relative w-full h-40 sm:h-48 bg-gray-100 rounded-lg overflow-hidden shadow-sm">
               <img
                 src={previewUrl}
                 alt="Vista previa"
@@ -236,7 +235,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors disabled:opacity-50 resize-none ${
               errors.description ? "border-red-500" : "border-gray-300"
             }`}
-            rows={4}
+            rows={3}
             disabled={isSubmitting}
           />
           {errors.description && (

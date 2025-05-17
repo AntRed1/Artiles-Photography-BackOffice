@@ -38,6 +38,7 @@ const api = async <T>(
 ): Promise<T> => {
   const url = `${environment.apiUrl}${endpoint}`;
   const token = localStorage.getItem("jwt");
+  console.log(`[${method}] ${url} - Token enviado:`, token || "No token");
 
   const headers: HeadersInit = {};
   if (!(body instanceof FormData)) {
@@ -45,6 +46,8 @@ const api = async <T>(
   }
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    console.warn(`[${method}] ${url} - No se encontró token en localStorage`);
   }
 
   try {
@@ -59,49 +62,69 @@ const api = async <T>(
           : undefined,
     });
 
-    if (!response.ok) {
-      const contentType = response.headers.get("content-type");
-      const errorText = contentType?.includes("application/json")
-        ? JSON.stringify(await response.json())
-        : await response.text();
+    const contentType = response.headers.get("content-type");
+    let responseData: unknown;
+    let responseText: string;
 
-      console.error(`API error: ${response.status} ${response.statusText}`, {
-        endpoint,
-        errorText,
-        headers,
-        body: body instanceof FormData ? [...body.entries()] : body,
-      });
+    if (contentType?.includes("application/json")) {
+      responseData = await response.json();
+      responseText = JSON.stringify(responseData);
+    } else {
+      responseText = await response.text();
+    }
+
+    console.log(
+      `[${method}] ${url} - Status: ${response.status}, Response:`,
+      responseData || responseText
+    );
+
+    if (!response.ok) {
+      console.error(
+        `[${method}] ${url} - Error ${response.status}: ${response.statusText}`,
+        {
+          endpoint,
+          responseText,
+          headers,
+          body: body instanceof FormData ? [...body.entries()] : body,
+        }
+      );
 
       if (response.status === 401) {
+        console.warn(`[${method}] ${url} - Error 401, detalles:`, responseData);
+        // Temporarily disable redirect for debugging
+        // localStorage.removeItem("jwt");
+        // window.location.href = "/login";
         throw new ApiError(
-          errorText || "Sesión expirada. Por favor, inicia sesión nuevamente.",
+          responseText ||
+            "Sesión expirada. Por favor, inicia sesión nuevamente.",
           401
         );
       }
 
       if (response.status === 403) {
         throw new ApiError(
-          errorText || "Acceso denegado. No tienes permisos suficientes.",
+          responseText || "Acceso denegado. No tienes permisos suficientes.",
           403
         );
       }
 
-      throw new ApiError(errorText || "Error en la solicitud", response.status);
+      throw new ApiError(
+        responseText || "Error en la solicitud",
+        response.status
+      );
     }
 
-    // Manejar respuestas 204 No Content
     if (response.status === 204) {
       return undefined as T;
     }
 
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      return response.json() as Promise<T>;
+    if (contentType?.includes("application/json")) {
+      return responseData as T;
     }
 
     throw new ApiError("Respuesta no válida del servidor", 500);
   } catch (error) {
-    console.error("API fetch error:", error);
+    console.error(`[${method}] ${url} - Fetch error:`, error);
     if (error instanceof ApiError) {
       throw error;
     }
