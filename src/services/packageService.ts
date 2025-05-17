@@ -9,6 +9,7 @@ interface PhotographyPackageResponse {
   price: number;
   imageUrl: string;
   isActive: boolean;
+  showPrice: boolean;
   features: string[];
 }
 
@@ -27,6 +28,7 @@ export const createPackage = async (
   price: number,
   file: File,
   isActive: boolean,
+  showPrice: boolean,
   features: string[]
 ): Promise<Package> => {
   const formData = new FormData();
@@ -35,6 +37,7 @@ export const createPackage = async (
   formData.append("description", description);
   formData.append("price", price.toString());
   formData.append("isActive", isActive.toString());
+  formData.append("showPrice", showPrice.toString());
   features.forEach((feature, index) => {
     formData.append(`features[${index}]`, feature);
   });
@@ -65,6 +68,7 @@ export const updatePackage = async (
     price: number;
     imageUrl: string;
     isActive: boolean;
+    showPrice: boolean;
     features: string[];
     file?: File;
   }
@@ -78,6 +82,7 @@ export const updatePackage = async (
   formData.append("price", data.price.toString());
   formData.append("imageUrl", data.imageUrl);
   formData.append("isActive", data.isActive.toString());
+  formData.append("showPrice", data.showPrice.toString());
   data.features.forEach((feature, index) => {
     formData.append(`features[${index}]`, feature);
   });

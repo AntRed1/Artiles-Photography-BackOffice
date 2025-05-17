@@ -70,9 +70,13 @@ const PackageCard: React.FC<{
           {pkg.title}
         </h3>
         <p className="text-sm text-gray-600 line-clamp-2">{pkg.description}</p>
-        <p className="text-lg font-bold text-indigo-600 mt-2">
-          ${pkg.price.toFixed(2)}
-        </p>
+        {pkg.showPrice ? (
+          <p className="text-lg font-bold text-indigo-600 mt-2">
+            ${pkg.price.toFixed(2)}
+          </p>
+        ) : (
+          <p className="text-sm text-gray-600 mt-2">Precio no disponible</p>
+        )}
         <p
           className={`text-sm mt-1 ${
             pkg.isActive ? "text-green-600" : "text-red-600"

@@ -83,6 +83,7 @@ const PackagesPage: React.FC = () => {
     file?: File;
     imageUrl: string;
     isActive: boolean;
+    showPrice: boolean;
     features: string[];
   }) => {
     setIsSubmitting(true);
@@ -105,6 +106,7 @@ const PackagesPage: React.FC = () => {
           validatedData.price,
           data.file,
           validatedData.isActive,
+          validatedData.showPrice,
           validatedData.features
         );
         setPackages([...packages, newPackage]);

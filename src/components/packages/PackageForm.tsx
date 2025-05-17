@@ -1,4 +1,3 @@
- 
 import React, { useState, useEffect } from "react";
 import type { Package } from "../../types/package";
 import Alert from "../common/Alert";
@@ -15,6 +14,7 @@ interface PackageFormProps {
     file?: File;
     imageUrl: string;
     isActive: boolean;
+    showPrice: boolean;
     features: string[];
   }) => void;
 }
@@ -32,6 +32,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
     file: undefined as File | undefined,
     imageUrl: pkg?.imageUrl || "",
     isActive: pkg?.isActive ?? true,
+    showPrice: pkg?.showPrice ?? true,
     features: pkg?.features || [""],
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(
@@ -342,6 +343,22 @@ const PackageForm: React.FC<PackageFormProps> = ({
             />
             <span className="text-sm font-medium text-gray-700">
               Paquete activo
+            </span>
+          </label>
+        </div>
+        <div>
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={formData.showPrice}
+              onChange={(e) =>
+                setFormData({ ...formData, showPrice: e.target.checked })
+              }
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded disabled:opacity-50"
+              disabled={isSubmitting}
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Mostrar precio
             </span>
           </label>
         </div>
