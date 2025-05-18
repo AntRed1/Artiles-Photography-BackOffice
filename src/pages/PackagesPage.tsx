@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import {
   getPackages,
@@ -15,7 +14,7 @@ import { ApiError } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 const PackagesPage: React.FC = () => {
-  const { logout, isAuthenticated, isAdmin } = useAuth();
+  const { logout } = useAuth();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
