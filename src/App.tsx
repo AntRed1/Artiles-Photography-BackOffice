@@ -12,6 +12,7 @@ import GalleryPage from "./pages/GalleryPage";
 import PackagesPage from "./pages/PackagesPage";
 import TestimonialsPage from "./pages/TestimonialsPage";
 import SettingsPage from "./pages/SettingsPage";
+import LogsActuatorPage from "./pages/LogsActuatorPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
@@ -88,6 +89,16 @@ const App: React.FC = () => {
                             element={
                               <ProtectedRoute requireAdmin>
                                 <SettingsPage />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/logs-actuator"
+                            element={
+                              <ProtectedRoute requireAdmin>
+                                <ErrorBoundary>
+                                  <LogsActuatorPage />
+                                </ErrorBoundary>
                               </ProtectedRoute>
                             }
                           />

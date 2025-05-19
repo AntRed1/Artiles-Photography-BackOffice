@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getConfig } from "../services/configService";
 import Background from "../assets/Background.jpg";
 
 const LoginPage: React.FC = () => {
@@ -11,8 +12,29 @@ const LoginPage: React.FC = () => {
   const [alert, setAlert] = useState<{ type: string; message: string } | null>(
     null
   );
+  const [logo, setLogo] = useState<{ url: string; altText: string }>({
+    url: "/logo.png",
+    altText: "Logo de Artiles Photography",
+  });
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Obtener el logo desde el backend al cargar el componente
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const config = await getConfig();
+        setLogo({
+          url: config.logoUrl || "/logo.png",
+          altText: config.logoAltText || "Logo de Artiles Photography",
+        });
+      } catch (error) {
+        console.error("Error al obtener el logo:", error);
+        // Mantener el logo predeterminado en caso de error
+      }
+    };
+    fetchLogo();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,9 +92,12 @@ const LoginPage: React.FC = () => {
       ></div>
       <div className="relative z-10 bg-white bg-opacity-95 p-8 rounded-xl shadow-lg w-full max-w-md animate-slide-up">
         <img
-          src="/logo.png"
-          alt="Logo de Artiles Photography"
+          src={logo.url}
+          alt={logo.altText}
           className="mx-auto mb-6 h-20 w-auto"
+          onError={(e) => {
+            e.currentTarget.src = "/logo.png"; // Fallback si la imagen no carga
+          }}
         />
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">
           Iniciar Sesión

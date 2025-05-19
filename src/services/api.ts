@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import environment from "../environments/environment";
 
 export class ApiError extends Error {
@@ -34,9 +35,18 @@ const fetchWithTimeout = (
 const api = async <T>(
   endpoint: string,
   method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH" = "GET",
-  body?: FormData | object
+  body?: FormData | object,
+  params?: Record<string, any>
 ): Promise<T> => {
-  const url = `${environment.apiUrl}${endpoint}`;
+  const url = new URL(`${environment.apiUrl}${endpoint}`);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, value.toString());
+      }
+    });
+  }
+
   const token = localStorage.getItem("jwt");
   console.log(`[${method}] ${url} - Token enviado:`, token || "No token");
 
@@ -51,7 +61,7 @@ const api = async <T>(
   }
 
   try {
-    const response = await fetchWithTimeout(url, {
+    const response = await fetchWithTimeout(url.toString(), {
       method,
       headers,
       body:
@@ -71,11 +81,12 @@ const api = async <T>(
       responseText = JSON.stringify(responseData);
     } else {
       responseText = await response.text();
+      responseData = responseText;
     }
 
     console.log(
       `[${method}] ${url} - Status: ${response.status}, Response:`,
-      responseData || responseText
+      responseData
     );
 
     if (!response.ok) {
@@ -89,13 +100,19 @@ const api = async <T>(
         }
       );
 
+      let errorMessage = responseText;
+      if (
+        typeof responseData === "object" &&
+        responseData &&
+        "error" in responseData
+      ) {
+        errorMessage = (responseData as { error: string }).error;
+      }
+
       if (response.status === 401) {
         console.warn(`[${method}] ${url} - Error 401, detalles:`, responseData);
-        // Temporarily disable redirect for debugging
-        // localStorage.removeItem("jwt");
-        // window.location.href = "/login";
         throw new ApiError(
-          responseText ||
+          errorMessage ||
             "Sesión expirada. Por favor, inicia sesión nuevamente.",
           401
         );
@@ -103,13 +120,13 @@ const api = async <T>(
 
       if (response.status === 403) {
         throw new ApiError(
-          responseText || "Acceso denegado. No tienes permisos suficientes.",
+          errorMessage || "Acceso denegado. No tienes permisos suficientes.",
           403
         );
       }
 
       throw new ApiError(
-        responseText || "Error en la solicitud",
+        errorMessage || "Error en la solicitud",
         response.status
       );
     }

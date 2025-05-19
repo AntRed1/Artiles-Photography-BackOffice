@@ -9,20 +9,42 @@ import {
   FaCamera,
   FaComments,
   FaCog,
-} from "react-icons/fa"; // Importamos los íconos de react-icons
+  FaFileAlt, // Nuevo ícono para Logs y Actuator
+} from "react-icons/fa";
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { logout } = useAuth();
+  const { logout, isAdmin } = useAuth();
 
   const menuItems = [
     { path: "/", icon: <FaTachometerAlt />, label: "Panel de Control" },
-    { path: "/users", icon: <FaUsers />, label: "Usuarios y Roles" },
-    { path: "/gallery", icon: <FaImages />, label: "Gestión de Contenido" },
+    {
+      path: "/users",
+      icon: <FaUsers />,
+      label: "Usuarios y Roles",
+      adminOnly: true,
+    },
+    {
+      path: "/gallery",
+      icon: <FaImages />,
+      label: "Gestión de Contenido",
+      adminOnly: true,
+    },
     { path: "/packages", icon: <FaCamera />, label: "Paquetes Fotográficos" },
     { path: "/testimonials", icon: <FaComments />, label: "Testimonios" },
-    { path: "/settings", icon: <FaCog />, label: "Configuración" },
+    {
+      path: "/settings",
+      icon: <FaCog />,
+      label: "Configuración",
+      adminOnly: true,
+    },
+    {
+      path: "/logs-actuator",
+      icon: <FaFileAlt />,
+      label: "Logs y Actuator",
+      adminOnly: true,
+    },
   ];
 
   const handleLogout = () => {
@@ -63,25 +85,29 @@ const Sidebar: React.FC = () => {
       </div>
       <div className="flex-1 overflow-y-auto py-4">
         <ul>
-          {menuItems.map((item) => (
-            <li key={item.path} className="mb-1">
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center ${
-                    collapsed ? "justify-center" : "justify-start"
-                  } 
-                  w-full p-3 rounded-lg ${
-                    isActive ? "bg-indigo-700" : "hover:bg-indigo-700"
-                  } 
-                  transition-colors`
-                }
-              >
-                <div className="w-5 h-5">{item.icon}</div>
-                {!collapsed && <span className="ml-3">{item.label}</span>}
-              </NavLink>
-            </li>
-          ))}
+          {menuItems.map((item) => {
+            // Mostrar solo si no es adminOnly o si el usuario es admin
+            if (item.adminOnly && !isAdmin) return null;
+            return (
+              <li key={item.path} className="mb-1">
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center ${
+                      collapsed ? "justify-center" : "justify-start"
+                    } 
+                    w-full p-3 rounded-lg ${
+                      isActive ? "bg-indigo-700" : "hover:bg-indigo-700"
+                    } 
+                    transition-colors`
+                  }
+                >
+                  <div className="w-5 h-5">{item.icon}</div>
+                  {!collapsed && <span className="ml-3">{item.label}</span>}
+                </NavLink>
+              </li>
+            );
+          })}
         </ul>
       </div>
       <div

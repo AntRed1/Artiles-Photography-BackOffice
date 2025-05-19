@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useAlert } from "../components/common/AlertManager";
+import { getConfig } from "../services/configService";
 import Background from "../assets/Background.jpg";
 
 const RegisterPage: React.FC = () => {
@@ -21,10 +21,30 @@ const RegisterPage: React.FC = () => {
     password?: string;
     confirmPassword?: string;
   }>({});
-
+  const [logo, setLogo] = useState<{ url: string; altText: string }>({
+    url: "/logo.png",
+    altText: "Logo de Artiles Photography",
+  });
   const { register } = useAuth();
   const { showAlert } = useAlert();
   const navigate = useNavigate();
+
+  // Obtener el logo desde el backend al cargar el componente
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const config = await getConfig();
+        setLogo({
+          url: config.logoUrl || "/logo.png",
+          altText: config.logoAltText || "Logo de Artiles Photography",
+        });
+      } catch (error) {
+        console.error("Error al obtener el logo:", error);
+        // Mantener el logo predeterminado en caso de error
+      }
+    };
+    fetchLogo();
+  }, []);
 
   const validateForm = (updatedFormData: typeof formData) => {
     const newErrors: {
@@ -59,10 +79,6 @@ const RegisterPage: React.FC = () => {
       updatedFormData.password.trim() !== updatedFormData.confirmPassword.trim()
     ) {
       newErrors.confirmPassword = "Las contraseñas no coinciden.";
-      /* Depuración: registrar los valores para inspeccionar diferencias
-      console.log("Password:", updatedFormData.password);
-      console.log("Confirm Password:", updatedFormData.confirmPassword);
-      */
     }
 
     setErrors(newErrors);
@@ -115,7 +131,7 @@ const RegisterPage: React.FC = () => {
   useEffect(() => {
     if (!loading) {
       const nameInput = document.getElementById("name") as HTMLInputElement;
-      nameInput?.focus(); // Enfocar el campo de nombre al cargar
+      nameInput?.focus();
     }
   }, [loading]);
 
@@ -127,9 +143,12 @@ const RegisterPage: React.FC = () => {
       />
       <div className="relative z-10 bg-white bg-opacity-95 p-8 rounded-xl shadow-lg w-full max-w-md animate-slide-up">
         <img
-          src="/logo.png"
-          alt="Logo de Artiles Photography"
+          src={logo.url}
+          alt={logo.altText}
           className="mx-auto mb-6 h-20 w-auto"
+          onError={(e) => {
+            e.currentTarget.src = "/logo.png"; // Fallback si la imagen no carga
+          }}
         />
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">
           Registrarse
@@ -202,8 +221,6 @@ const RegisterPage: React.FC = () => {
     </div>
   );
 };
-
-export default RegisterPage;
 
 // Componentes reutilizables
 const InputField = ({
@@ -388,3 +405,5 @@ const SubmitButton = ({
     <span>{loading ? loadingText : text}</span>
   </button>
 );
+
+export default RegisterPage;
