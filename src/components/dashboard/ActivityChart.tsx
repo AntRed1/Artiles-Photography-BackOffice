@@ -1,65 +1,118 @@
-import React, { useEffect, useRef } from "react";
-import * as echarts from "echarts";
-import type { EChartsType } from "echarts";
+import React, { useEffect, useState, useCallback } from "react";
+import { fetchVisitors } from "../../services/plausibleService";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
-const ActivityChart: React.FC = () => {
-  const chartRef = useRef<HTMLDivElement>(null);
+interface PlausibleTimeseries {
+  date: string;
+  visitors: number;
+  pageviews: number;
+}
+
+interface ActivityChartProps {
+  period: string;
+}
+
+const ActivityChart: React.FC<ActivityChartProps> = ({ period }) => {
+  const [data, setData] = useState<PlausibleTimeseries[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const timeseries = await fetchVisitors(period);
+      setData(timeseries);
+      setError(null);
+    } catch (error) {
+      console.error("Error fetching Plausible data:", error);
+      setError("No se pudo cargar el gráfico de actividad.");
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
 
   useEffect(() => {
-    if (chartRef.current) {
-      const myChart: EChartsType = echarts.init(chartRef.current);
+    loadData();
+  }, [loadData]);
 
-      const option = {
-        animation: true,
-        tooltip: { trigger: "axis" as const },
-        legend: {
-          data: ["Nuevos Usuarios", "Subidas de Imágenes", "Inicios de Sesión"],
-        },
-        grid: { left: "3%", right: "4%", bottom: "3%", containLabel: true },
-        xAxis: {
-          type: "category" as const,
-          boundaryGap: false,
-          data: ["Ene", "Feb", "Mar", "Abr", "May", "Jun"],
-        },
-        yAxis: { type: "value" as const },
-        series: [
-          {
-            name: "Nuevos Usuarios",
-            type: "line",
-            stack: "Total",
-            data: [120, 132, 101, 134, 90, 230],
-          },
-          {
-            name: "Subidas de Imágenes",
-            type: "line",
-            stack: "Total",
-            data: [220, 182, 191, 234, 290, 330],
-          },
-          {
-            name: "Inicios de Sesión",
-            type: "line",
-            stack: "Total",
-            data: [150, 232, 201, 154, 190, 330],
-          },
-        ],
-      };
-
-      myChart.setOption(option);
-
-      const resizeChart = () => myChart.resize();
-      window.addEventListener("resize", resizeChart);
-
-      return () => {
-        window.removeEventListener("resize", resizeChart);
-        myChart.dispose();
-      };
-    }
-  }, []);
+  if (error) {
+    return (
+      <div
+        className="text-center p-6 text-red-600"
+        role="alert"
+        aria-live="assertive"
+      >
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold mb-4">Actividad General</h2>
-      <div ref={chartRef} style={{ height: "400px" }}></div>
+      <h2 className="text-lg font-semibold mb-4 text-gray-800">
+        Actividad del Sitio
+      </h2>
+      {loading && (
+        <div className="text-center p-2 text-gray-600 text-sm animate-pulse">
+          Cargando gráfico...
+        </div>
+      )}
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart
+          data={data}
+          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+          aria-label="Gráfico de actividad del sitio"
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="date"
+            tickFormatter={(date) =>
+              new Date(date).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            }
+          />
+          <YAxis />
+          <Tooltip
+            formatter={(value: number) => [value.toLocaleString(), ""]}
+            labelFormatter={(label) =>
+              new Date(label).toLocaleString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                day: "numeric",
+                month: "short",
+              })
+            }
+          />
+          <Legend />
+          <Line
+            type="monotone"
+            dataKey="visitors"
+            stroke="#4f46e5"
+            name="Visitantes Únicos"
+            activeDot={{ r: 8 }}
+            animationDuration={1000}
+          />
+          <Line
+            type="monotone"
+            dataKey="pageviews"
+            stroke="#22c55e"
+            name="Vistas de Página"
+            activeDot={{ r: 8 }}
+            animationDuration={1000}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 };

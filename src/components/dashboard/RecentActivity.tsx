@@ -1,32 +1,24 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { fetchRecentActivity } from "../../services/plausibleService";
 
-const RecentActivity: React.FC = () => {
-  const activities = [
-    {
-      icon: "fa-user-edit",
-      text: "Carlos actualizó un paquete fotográfico",
-      time: "Hace 35 minutos",
-      color: "indigo",
-    },
-    {
-      icon: "fa-image",
-      text: "María subió 12 nuevas fotos",
-      time: "Hace 2 horas",
-      color: "green",
-    },
-    {
-      icon: "fa-user-plus",
-      text: "Nuevo usuario registrado: Ana Martínez",
-      time: "Hace 5 horas",
-      color: "amber",
-    },
-    {
-      icon: "fa-exclamation-circle",
-      text: "Alerta: 3 intentos fallidos de inicio de sesión",
-      time: "Hace 1 día",
-      color: "red",
-    },
-  ];
+interface RecentActivityProps {
+  period: string;
+}
+
+const RecentActivity: React.FC<RecentActivityProps> = ({ period }) => {
+  const [activities, setActivities] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        const data = await fetchRecentActivity(period);
+        setActivities(data);
+      } catch (error) {
+        console.error("Error fetching recent activities:", error);
+      }
+    };
+    loadActivities();
+  }, [period]);
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -35,19 +27,21 @@ const RecentActivity: React.FC = () => {
         <button className="text-indigo-600 text-sm">Ver todo</button>
       </div>
       <div className="space-y-4">
-        {activities.map((activity, index) => (
-          <div key={index} className="flex items-start">
-            <div className={`bg-${activity.color}-100 p-2 rounded-full mr-3`}>
-              <i
-                className={`fas ${activity.icon} text-${activity.color}-600`}
-              ></i>
+        {activities.length > 0 ? (
+          activities.map((activity, index) => (
+            <div key={index} className="flex items-start">
+              <div className="bg-indigo-100 p-2 rounded-full mr-3">
+                <i className="fas fa-globe text-indigo-600"></i>
+              </div>
+              <div>
+                <p className="text-sm font-medium">{activity}</p>
+                <p className="text-xs text-gray-500">Hace unos momentos</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-medium">{activity.text}</p>
-              <p className="text-xs text-gray-500">{activity.time}</p>
-            </div>
-          </div>
-        ))}
+          ))
+        ) : (
+          <p className="text-sm text-gray-500">No hay actividad reciente.</p>
+        )}
       </div>
     </div>
   );

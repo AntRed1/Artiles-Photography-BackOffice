@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useAlert } from "../../components/common/AlertManager";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import {
   FaTachometerAlt,
@@ -9,13 +10,16 @@ import {
   FaCamera,
   FaComments,
   FaCog,
-  FaFileAlt, // Nuevo ícono para Logs y Actuator
+  FaFileAlt,
+  FaEnvelope,
 } from "react-icons/fa";
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { logout, isAdmin } = useAuth();
+  const { showAlert } = useAlert();
+  const navigate = useNavigate();
 
   const menuItems = [
     { path: "/", icon: <FaTachometerAlt />, label: "Panel de Control" },
@@ -34,6 +38,12 @@ const Sidebar: React.FC = () => {
     { path: "/packages", icon: <FaCamera />, label: "Paquetes Fotográficos" },
     { path: "/testimonials", icon: <FaComments />, label: "Testimonios" },
     {
+      path: "/contact-messages",
+      icon: <FaEnvelope />,
+      label: "Mensajes de Contacto",
+      adminOnly: true,
+    },
+    {
       path: "/settings",
       icon: <FaCog />,
       label: "Configuración",
@@ -47,12 +57,17 @@ const Sidebar: React.FC = () => {
     },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsLoggingOut(true);
-    setTimeout(() => {
-      logout();
-      window.location.href = "/login";
-    }, 500);
+    try {
+      await logout();
+      showAlert("success", "Sesión cerrada exitosamente");
+      navigate("/login");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      showAlert("error", "Error al cerrar sesión. Intenta de nuevo.");
+      setIsLoggingOut(false);
+    }
   };
 
   return (
@@ -86,7 +101,6 @@ const Sidebar: React.FC = () => {
       <div className="flex-1 overflow-y-auto py-4">
         <ul>
           {menuItems.map((item) => {
-            // Mostrar solo si no es adminOnly o si el usuario es admin
             if (item.adminOnly && !isAdmin) return null;
             return (
               <li key={item.path} className="mb-1">
