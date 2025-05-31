@@ -15,7 +15,15 @@ interface LogFilterParams {
 export const fetchLogs = async (
   params: LogFilterParams
 ): Promise<LogsResponse> => {
-  return api<LogsResponse>("/admin/logs/filter", "GET", undefined, params);
+  const filteredParams: Record<string, string | number | boolean> = Object.entries(params)
+    .reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, string | number | boolean>);
+
+  return api<LogsResponse>("/admin/logs/filter", "GET", undefined, filteredParams);
 };
 
 export const deleteLogsBefore = async (

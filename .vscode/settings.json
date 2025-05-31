@@ -12,5 +12,6 @@
     "sweetalert",
     "Visualizador"
   ],
-  "postman.settings.dotenv-detection-notification-visibility": false
+  "postman.settings.dotenv-detection-notification-visibility": false,
+  "DockerRun.DisableDockerrc": true
 }
