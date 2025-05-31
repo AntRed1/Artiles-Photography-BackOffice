@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { deleteUser } from "../../services/userService";
 import type { User } from "../../types/user";
@@ -5,6 +6,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useUserContext } from "../../context/UserContext";
 import Alert from "../common/Alert";
 import Modal from "../common/Modal";
+import api from "../../services/api";
 
 interface UserListProps {
   onEdit: (user: User | null) => void;
@@ -17,7 +19,9 @@ const UserList: React.FC<UserListProps> = ({ onEdit }) => {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [alert, setAlert] = useState<{ type: string; message: string } | null>(null);
+  const [alert, setAlert] = useState<{ type: string; message: string } | null>(
+    null
+  );
   const [showDeleteModal, setShowDeleteModal] = useState<{
     id: number;
     name: string;
@@ -33,6 +37,23 @@ const UserList: React.FC<UserListProps> = ({ onEdit }) => {
     loadUsers();
   }, [refreshUsers]);
 
+  const createNotification = async (
+    icon: string,
+    text: string,
+    color: string,
+    link?: string
+  ) => {
+    try {
+      await api("/notifications", "POST", { icon, text, color, link });
+    } catch (error: any) {
+      console.error("Failed to create notification:", error);
+      setAlert({
+        type: "error",
+        message: error.message || "No se pudo crear la notificación",
+      });
+    }
+  };
+
   const handleDelete = async (id: number) => {
     setIsDeleting(true);
     try {
@@ -42,6 +63,13 @@ const UserList: React.FC<UserListProps> = ({ onEdit }) => {
         type: "success",
         message: "Usuario eliminado correctamente",
       });
+      // Create notification for user deletion
+      await createNotification(
+        "user-plus",
+        `Usuario con ID ${id} eliminado`,
+        "indigo",
+        "/users"
+      );
     } catch (error) {
       setAlert({
         type: "error",

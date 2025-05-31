@@ -7,14 +7,16 @@ import {
 } from "../services/packageService";
 import type { Package } from "../types/package";
 import Modal from "../components/common/Modal";
-import Alert from "../components/common/Alert";
 import PackageForm from "../components/packages/PackageForm";
 import PackageList from "../components/packages/PackageList";
 import { ApiError } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useAlert } from "../components/common/AlertManager";
+import api from "../services/api";
 
 const PackagesPage: React.FC = () => {
   const { logout } = useAuth();
+  const { showAlert } = useAlert();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -24,9 +26,6 @@ const PackagesPage: React.FC = () => {
   } | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [alert, setAlert] = useState<{ type: string; message: string } | null>(
-    null
-  );
 
   useEffect(() => {
     let isMounted = true;
@@ -44,7 +43,7 @@ const PackagesPage: React.FC = () => {
             error instanceof ApiError
               ? error.message
               : "No se pudieron cargar los paquetes";
-          setAlert({ type: "error", message });
+          showAlert("error", message, 4000);
           if (
             error instanceof ApiError &&
             (error.status === 401 || error.status === 403)
@@ -72,7 +71,26 @@ const PackagesPage: React.FC = () => {
         clearTimeout(timeoutId);
       }
     };
-  }, [logout]);
+  }, [logout, showAlert]);
+
+  const createNotification = async (
+    text: string,
+    icon: string = "image",
+    color: string = "indigo",
+    link?: string
+  ) => {
+    try {
+      await api("/notifications", "POST", {
+        icon,
+        text,
+        color,
+        link,
+      });
+    } catch (error) {
+      console.error("Failed to create notification:", error);
+      showAlert("error", "No se pudo crear la notificación", 4000);
+    }
+  };
 
   const handleSubmit = async (data: {
     id?: number;
@@ -89,7 +107,11 @@ const PackagesPage: React.FC = () => {
     try {
       const validatedPrice =
         isNaN(data.price) || data.price <= 0 ? 0 : data.price;
-      const validatedData = { ...data, price: validatedPrice };
+      const validatedData = {
+        ...data,
+        price: validatedPrice,
+        imageUrl: data.imageUrl || "",
+      };
 
       if (data.id) {
         await updatePackage(data.id, validatedData);
@@ -98,6 +120,13 @@ const PackagesPage: React.FC = () => {
             p.id === data.id ? { ...p, ...validatedData } : p
           )
         );
+        await createNotification(
+          `Paquete "${data.title}" actualizado`,
+          "image",
+          "indigo",
+          `/packages`
+        );
+        showAlert("success", "Paquete actualizado con éxito", 4000);
       } else if (data.file) {
         const newPackage = await createPackage(
           validatedData.title,
@@ -109,18 +138,24 @@ const PackagesPage: React.FC = () => {
           validatedData.features
         );
         setPackages([...packages, newPackage]);
+        await createNotification(
+          `Nuevo paquete "${data.title}" creado`,
+          "image",
+          "green",
+          `/packages`
+        );
+        showAlert("success", "Paquete creado con éxito", 4000);
       } else {
         throw new Error("El archivo es obligatorio para crear un paquete");
       }
       setModalOpen(false);
       setSelectedPackage(null);
-      setAlert({ type: "success", message: "Paquete procesado con éxito" });
     } catch (error: unknown) {
       const message =
         error instanceof ApiError
           ? error.message
           : "No se pudo procesar el paquete";
-      setAlert({ type: "error", message });
+      showAlert("error", message, 4000);
       if (
         error instanceof ApiError &&
         (error.status === 401 || error.status === 403)
@@ -138,16 +173,25 @@ const PackagesPage: React.FC = () => {
   const handleDelete = async (id: number) => {
     setIsSubmitting(true);
     try {
+      const packageToDelete = packages.find((p) => p.id === id);
       await deletePackage(id);
       setPackages(packages.filter((p) => p.id !== id));
       setDeleteModal(null);
-      setAlert({ type: "success", message: "Paquete eliminado con éxito" });
+      if (packageToDelete) {
+        await createNotification(
+          `Paquete "${packageToDelete.title}" eliminado`,
+          "exclamation-triangle",
+          "amber",
+          `/packages`
+        );
+      }
+      showAlert("success", "Paquete eliminado con éxito", 4000);
     } catch (error: unknown) {
       const message =
         error instanceof ApiError
           ? error.message
           : "No se pudo eliminar el paquete";
-      setAlert({ type: "error", message });
+      showAlert("error", message, 4000);
       if (
         error instanceof ApiError &&
         (error.status === 401 || error.status === 403)
@@ -170,18 +214,20 @@ const PackagesPage: React.FC = () => {
   if (loading && !packages.length) {
     return (
       <div className="max-w-7xl mx-auto p-6">
-        <div className="flex animate-pulse space-x-4">
-          <div className="w-12 h-12 rounded-full bg-gray-200"></div>
-          <div className="flex-1 space-y-6 py-1">
-            <div className="h-3 rounded bg-gray-200"></div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 h-3 rounded bg-gray-200"></div>
-                <div className="col-span-1 h-3 rounded bg-gray-200"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl shadow-sm animate-pulse"
+            >
+              <div className="aspect-[4/3] bg-gray-200 rounded-t-xl"></div>
+              <div className="p-4 space-y-3">
+                <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded w-full"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
               </div>
-              <div className="h-3 rounded bg-gray-200"></div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     );
@@ -189,13 +235,6 @@ const PackagesPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      {alert && (
-        <Alert
-          type={alert.type as "success" | "error"}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
           Gestión de Paquetes Fotográficos
@@ -239,6 +278,7 @@ const PackagesPage: React.FC = () => {
           pkg={selectedPackage}
           onClose={() => setModalOpen(false)}
           onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
         />
       </Modal>
       {deleteModal && (

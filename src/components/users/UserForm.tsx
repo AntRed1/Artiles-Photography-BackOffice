@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import { createUser, updateUser } from "../../services/userService";
 import type { User } from "../../types/user";
 import { useUserContext } from "../../context/UserContext";
 import Alert from "../common/Alert";
+import api from "../../services/api";
 
 interface UserFormProps {
   user: User | null;
@@ -25,6 +27,23 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const availableRoles = ["Administrador", "Editor", "Visualizador", "Usuario"];
+
+  const createNotification = async (
+    icon: string,
+    text: string,
+    color: string,
+    link?: string
+  ) => {
+    try {
+      await api("/notifications", "POST", { icon, text, color, link });
+    } catch (error: any) {
+      console.error("Failed to create notification:", error);
+      setAlert({
+        type: "error",
+        message: error.message || "No se pudo crear la notificación",
+      });
+    }
+  };
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -57,6 +76,12 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
           type: "success",
           message: "Usuario actualizado correctamente",
         });
+        await createNotification(
+          "user-plus",
+          `Usuario ${formData.name} actualizado`,
+          "indigo",
+          "/users"
+        );
       } else {
         result = await createUser({
           name: formData.name,
@@ -66,7 +91,16 @@ const UserForm: React.FC<UserFormProps> = ({ user, onClose }) => {
           enabled: formData.enabled,
         });
         updateUsers({ ...result, roles: [formData.role] }, "add");
-        setAlert({ type: "success", message: "Usuario creado correctamente" });
+        setAlert({
+          type: "success",
+          message: "Usuario creado correctamente",
+        });
+        await createNotification(
+          "user-plus",
+          `Usuario ${formData.name} creado`,
+          "indigo",
+          "/users"
+        );
       }
       setTimeout(() => onClose(), 1000);
     } catch (error) {

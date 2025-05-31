@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   fetchStats,
   fetchBreakdown,
@@ -34,9 +34,15 @@ import {
 } from "recharts";
 import {
   fetchCloudinaryMetrics,
+  fetchCloudinaryImages,
+  deleteCloudinaryImage,
   type CloudinaryMetric,
   type CloudinaryResource,
-} from "../services/cloudinaryService"; // Removed CloudinaryTrendData from import
+  type CloudinaryImagesResponse,
+} from "../services/cloudinaryService";
+import { ApiError } from "../services/api";
+import { useAlert } from "../components/common/AlertManager";
+import Modal from "../components/common/Modal";
 
 const VALID_PERIODS = ["day", "7d", "30d", "month", "6mo", "12mo"];
 
@@ -56,21 +62,32 @@ const DashboardPage: React.FC = () => {
   const [deviceData, setDeviceData] = useState<DeviceData[]>([]);
   const [cloudinaryMetrics, setCloudinaryMetrics] =
     useState<CloudinaryMetric | null>(null);
+  const [images, setImages] = useState<CloudinaryResource[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(10);
+  const [loadingImages, setLoadingImages] = useState(false);
   const [period, setPeriod] = useState<string>("day");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const toastTimeout = useRef<NodeJS.Timeout | null>(null);
-  const { isRealTime, toggleRealTime, subscribeToUpdates } = useRealTime();
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    publicId?: string | null;
+  }>({ isOpen: false, publicId: null });
+  const [cloudinaryRateLimit, setCloudinaryRateLimit] = useState(false);
+  const { isRealTime, toggleRealTime } = useRealTime();
+  const { showAlert } = useAlert();
 
   const loadData = useCallback(async () => {
     if (!VALID_PERIODS.includes(period)) {
-      setError("Período seleccionado no válido.");
+      showAlert("error", "Período seleccionado no válido.");
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
+
+      // Fetch Plausible data
       const [
         statsData,
         breakdownData,
@@ -80,7 +97,6 @@ const DashboardPage: React.FC = () => {
         devices,
         events,
         visitors,
-        cloudinaryData,
       ] = await Promise.all([
         fetchStats(period),
         fetchBreakdown(period),
@@ -90,13 +106,25 @@ const DashboardPage: React.FC = () => {
         fetchDevices(period),
         fetchEvents(period),
         fetchVisitors(period),
-        fetchCloudinaryMetrics(),
       ]);
+
+      // Fetch Cloudinary metrics separately
+      let cloudinaryData: CloudinaryMetric | null = null;
+      if (!cloudinaryRateLimit) {
+        try {
+          cloudinaryData = await fetchCloudinaryMetrics();
+        } catch (cloudinaryError) {
+          console.warn("Failed to fetch Cloudinary metrics:", cloudinaryError);
+          showAlert("warning", "No se pudieron cargar métricas de Cloudinary.");
+        }
+      }
+
+      // Update state with Plausible data
       setStats(statsData);
       setTopPages(
-        Array.isArray(breakdownData.results)
+        "results" in breakdownData && Array.isArray(breakdownData.results)
           ? breakdownData.results.filter(
-              (page): page is PlausibleBreakdown =>
+              (page: PlausibleBreakdown): page is PlausibleBreakdown =>
                 page.page != null &&
                 page.visitors != null &&
                 page.pageviews != null &&
@@ -112,45 +140,123 @@ const DashboardPage: React.FC = () => {
       setEventData(events);
       setSourceData(sources);
       setDeviceData(devices);
-      setCloudinaryMetrics(cloudinaryData);
-      setError(null);
+
+      // Update Cloudinary metrics if fetched
+      if (cloudinaryData) {
+        setCloudinaryMetrics(cloudinaryData);
+      }
     } catch (err: unknown) {
       let errorMessage = "Error al cargar las estadísticas. Intenta de nuevo.";
-      if (err instanceof Error) {
+      if (err instanceof ApiError) {
         if (err.message.includes("Error parsing `period`")) {
           errorMessage =
             "Período no válido. Por favor, selecciona un período diferente.";
-        } else if (err.message.includes("Error fetching Cloudinary metrics")) {
+        } else if (err.status === 429) {
+          errorMessage =
+            "Límite de tasa de Cloudinary excedido. Por favor, espera hasta el 27 de mayo de 2025 a las 01:00 UTC o actualiza tu plan de Cloudinary.";
+          setCloudinaryRateLimit(true);
+        } else if (err.message.includes("Cloudinary")) {
           errorMessage =
             "Error al cargar métricas de Cloudinary. Verifica la conexión con Cloudinary.";
         }
       }
-      setError(errorMessage);
+      showAlert("error", errorMessage);
       console.error("Error loading data:", err);
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, showAlert, cloudinaryRateLimit]);
+
+  const loadImages = useCallback(async () => {
+    setLoadingImages(true);
+    try {
+      const response: CloudinaryImagesResponse = await fetchCloudinaryImages(
+        currentPage,
+        pageSize
+      );
+      setImages(response.images);
+      setTotalPages(Math.ceil(response.totalCount / pageSize));
+      setCloudinaryRateLimit(false); // Reset rate limit flag on success
+    } catch (err: unknown) {
+      let errorMessage = "Error al cargar imágenes de Cloudinary.";
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+        if (err.status === 429) {
+          errorMessage =
+            "Límite de tasa de Cloudinary excedido. Por favor, espera hasta el próximo ciclo de datos.";
+          setCloudinaryRateLimit(true);
+        } else if (err.status === 401) {
+          errorMessage =
+            "Sesión expirada. Por favor, inicia sesión nuevamente.";
+        } else if (err.status === 0) {
+          errorMessage =
+            "Error de red o CORS. Verifica la conexión o la configuración del servidor.";
+        }
+      }
+      showAlert("error", errorMessage);
+      console.error("[loadImages] Error:", err);
+    } finally {
+      setLoadingImages(false);
+    }
+  }, [currentPage, pageSize, showAlert]);
+
+  const confirmDeleteImage = async () => {
+    if (!modal.publicId) return;
+
+    try {
+      await deleteCloudinaryImage(modal.publicId);
+      await loadImages(); // Refresh images
+      const updatedMetrics = await fetchCloudinaryMetrics();
+      setCloudinaryMetrics(updatedMetrics);
+      setCloudinaryRateLimit(false);
+      showAlert("success", "Imagen eliminada correctamente.");
+    } catch (err: unknown) {
+      let errorMessage = "Error al eliminar la imagen.";
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+        if (err.status === 401) {
+          errorMessage =
+            "Sesión expirada. Por favor, inicia sesión nuevamente.";
+        } else if (err.status === 403) {
+          errorMessage =
+            "Acceso denegado. Solo los administradores pueden eliminar imágenes.";
+        } else if (err.status === 429) {
+          errorMessage =
+            "Límite de tasa de Cloudinary excedido. Por favor, espera hasta el 27 de mayo de 2025 a las 01:00 UTC o actualiza tu plan de Cloudinary.";
+          setCloudinaryRateLimit(true);
+        }
+      }
+      showAlert("error", errorMessage);
+      console.error("Error deleting image:", err);
+    } finally {
+      setModal({ isOpen: false, publicId: null });
+    }
+  };
+
+  const handleDeleteImage = (publicId: string) => {
+    setModal({ isOpen: true, publicId });
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   useEffect(() => {
     loadData();
-    const unsubscribe = subscribeToUpdates(period, loadData);
-    return unsubscribe;
-  }, [loadData, period, subscribeToUpdates]);
-
-  useEffect(() => {
-    if (error) {
-      if (toastTimeout.current) {
-        clearTimeout(toastTimeout.current);
-      }
-      toastTimeout.current = setTimeout(() => setError(null), 5000);
-      return () => {
-        if (toastTimeout.current) {
-          clearTimeout(toastTimeout.current);
-        }
-      };
+    loadImages();
+    let intervalId: NodeJS.Timeout | null = null;
+    if (isRealTime) {
+      intervalId = setInterval(() => {
+        loadData();
+        loadImages();
+      }, 10000); // Update every 10 seconds
     }
-  }, [error]);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [loadData, loadImages, isRealTime]);
 
   if (loading && !isRealTime) {
     return (
@@ -164,26 +270,35 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div
-        className="text-center p-6 text-red-600"
-        role="alert"
-        aria-live="assertive"
-      >
-        {error}
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 bg-gray-50 min-h-screen font-sans">
+    <div className="max-w-7xl mx-auto pacar-sm-6 bg-gray-50 min-h-screen font-sans">
       <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-900">
         Panel de Control - Artiles Photography
       </h1>
 
+      {/* Modal para confirmar eliminación */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ isOpen: false, publicId: null })}
+        title="Confirmar Eliminación"
+        size="sm"
+        primaryAction={{
+          label: "Eliminar",
+          onClick: confirmDeleteImage,
+        }}
+        secondaryAction={{
+          label: "Eliminar",
+          onClick: () => setModal({ isOpen: false, publicId: null }),
+        }}
+      >
+        <p className="text-sm">
+          ¿Estás seguro de que deseas eliminar la imagen "{modal.publicId}"?
+          Esta acción no se puede deshacer.
+        </p>
+      </Modal>
+
       {/* Selector de período y Real-Time Toggle */}
-      <div className="mb-6 sm:mb-8 bg-white rounded-lg shadow-sm p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="mb-6 sm:mb-8 bg-white rounded-lg shadow-sm p-4 sm:flex-col sm:flex-row sm:items-center sm:p-4 justify-between gap-4">
         <div className="flex items-center gap-2">
           <label
             htmlFor="period"
@@ -195,8 +310,8 @@ const DashboardPage: React.FC = () => {
             id="period"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="border rounded-lg p-2 bg-gray-100 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base"
-            aria-describedby="period-description"
+            className="border rounded-lg p-2 bg-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-sm sm:text-base"
+            aria-describedby="description-period"
           >
             {VALID_PERIODS.map((p) => (
               <option key={p} value={p}>
@@ -222,29 +337,30 @@ const DashboardPage: React.FC = () => {
               checked={isRealTime}
               onChange={(e) => toggleRealTime(e.target.checked)}
               className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              disabled={cloudinaryRateLimit}
             />
             Actualización en tiempo real
           </label>
         )}
-        <p id="period-description" className="text-xs sm:text-sm text-gray-500">
-          Selecciona el período de tiempo para las estadísticas.
+        <p id="description-period" className="text-sm text-gray-500">
+          Selecciona el período para el análisis de estadísticas.
         </p>
       </div>
 
-      {/* Real-Time Loading Indicator */}
+      {/* Indicador de Carga en Tiempo Real */}
       {isRealTime && loading && (
         <div className="text-center p-2 text-gray-600 text-sm animate-pulse">
           Actualizando datos en tiempo real...
         </div>
       )}
 
-      {/* Key Metrics including Cloudinary */}
+      {/* Métricas Clave incluyendo Cloudinary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow duration-300">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-xs sm:text-sm font-medium">
-                Visitantes Únicos
+                Visitantes únicos
               </p>
               <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mt-1">
                 {stats.visitors.toLocaleString()}
@@ -264,7 +380,7 @@ const DashboardPage: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow duration-300">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-xs sm:text-sm font-medium">
@@ -287,19 +403,20 @@ const DashboardPage: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow duration-300">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-xs sm:text-sm font-medium">
                 Almacenamiento
               </p>
               <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mt-1">
-                {(cloudinaryMetrics?.storageUsageBytes
+                {cloudinaryMetrics?.storageUsageBytes
                   ? (
                       cloudinaryMetrics.storageUsageBytes /
                       (1024 * 1024)
                     ).toFixed(2)
-                  : 0) + " MB"}
+                  : "0"}{" "}
+                MB
               </h2>
             </div>
             <div className="bg-gray-50 p-2 sm:p-3 rounded-full">
@@ -315,7 +432,7 @@ const DashboardPage: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow duration-300">
+        <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-xs sm:text-sm font-medium">
@@ -341,7 +458,7 @@ const DashboardPage: React.FC = () => {
       {/* Cloudinary Trend Chart */}
       <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-6 sm:mb-8">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
-          Tendencias de Cloudinary (Últimos 7 días)
+          Tendencias de Cloudinary (Últimos 5 días)
         </h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
@@ -473,6 +590,79 @@ const DashboardPage: React.FC = () => {
           <ActivityChart period={period} />
         </div>
         <RecentActivity period={period} />
+      </div>
+
+      {/* Galería de Imágenes */}
+      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-6 sm:mb-8">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
+          Galería de Imágenes
+        </h2>
+        {loadingImages ? (
+          <div className="text-center p-4 text-gray-600" role="status">
+            Cargando imágenes...
+          </div>
+        ) : images.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {images.map((image, index) => (
+                <div
+                  key={index}
+                  className="border rounded-lg p-2 hover:shadow-md transition-shadow"
+                >
+                  {image.secure_url ? (
+                    <img
+                      src={image.secure_url}
+                      alt={`Vista previa de ${image.public_id}`}
+                      className="w-full h-32 object-cover rounded"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-32 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-sm">
+                      Sin Vista
+                    </div>
+                  )}
+                  <p className="text-sm truncate mt-2" title={image.public_id}>
+                    {image.public_id}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(image.created_at).toLocaleString()}
+                  </p>
+                  <button
+                    onClick={() => handleDeleteImage(image.public_id)}
+                    className="text-red-600 hover:text-red-800 mt-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
+                    aria-label={`Eliminar imagen ${image.public_id}`}
+                    disabled={cloudinaryRateLimit}
+                  >
+                    <i className="fas fa-trash-alt mr-1" aria-hidden="true"></i>
+                    Eliminar
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-center mt-6">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                (page) => (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`mx-1 px-3 py-1 rounded text-sm ${
+                      currentPage === page
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-200 hover:bg-gray-300"
+                    }`}
+                    aria-label={`Ir a la página ${page}`}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="text-center p-4 text-gray-500">
+            No hay imágenes disponibles.
+          </div>
+        )}
       </div>
 
       {/* Eventos Personalizados */}
@@ -713,78 +903,6 @@ const DashboardPage: React.FC = () => {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* Recent Uploads from Cloudinary */}
-      {cloudinaryMetrics?.recentUploads &&
-        cloudinaryMetrics.recentUploads.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-6 sm:mb-8">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
-              Subidas Recientes de Cloudinary
-            </h2>
-            <div className="overflow-x-auto">
-              <table
-                className="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden"
-                aria-label="Tabla de subidas recientes"
-              >
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Vista Previa
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Archivo
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      Fecha
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {cloudinaryMetrics.recentUploads.map(
-                    (
-                      upload: CloudinaryResource & { secure_url?: string },
-                      index: number
-                    ) => (
-                      <tr
-                        key={index}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                          {upload.secure_url ? (
-                            <img
-                              src={upload.secure_url}
-                              alt={`Preview of ${upload.public_id}`}
-                              className="h-10 w-10 sm:h-12 sm:w-12 object-cover rounded-md"
-                            />
-                          ) : (
-                            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-gray-200 rounded-md flex items-center justify-center text-gray-500 text-xs">
-                              Sin Vista
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {upload.public_id}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(upload.created_at).toLocaleString()}
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
     </div>
   );
 };

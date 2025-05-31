@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import environment from "../environments/environment";
 
 export class ApiError extends Error {
@@ -36,7 +35,7 @@ const api = async <T>(
   endpoint: string,
   method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH" = "GET",
   body?: FormData | object,
-  params?: Record<string, any>
+  params?: Record<string, string | number | boolean>
 ): Promise<T> => {
   const url = new URL(`${environment.apiUrl}${endpoint}`);
   if (params) {
@@ -48,7 +47,10 @@ const api = async <T>(
   }
 
   const token = localStorage.getItem("jwt");
-  console.log(`[${method}] ${url} - Token enviado:`, token || "No token");
+  console.log(
+    `[${method}] ${url} - Token enviado:`,
+    token ? "Presente" : "No token"
+  );
 
   const headers: HeadersInit = {};
   if (!(body instanceof FormData)) {
@@ -95,7 +97,12 @@ const api = async <T>(
         {
           endpoint,
           responseText,
-          headers,
+          headers: {
+            ...headers,
+            Authorization: headers["Authorization"]
+              ? "Bearer [oculto]"
+              : "No presente",
+          },
           body: body instanceof FormData ? [...body.entries()] : body,
         }
       );
@@ -110,7 +117,8 @@ const api = async <T>(
       }
 
       if (response.status === 401) {
-        console.warn(`[${method}] ${url} - Error 401, detalles:`, responseData);
+        console.warn(`[${method}] ${url} - Sesión expirada o token inválido`);
+        localStorage.removeItem("jwt");
         throw new ApiError(
           errorMessage ||
             "Sesión expirada. Por favor, inicia sesión nuevamente.",
@@ -120,13 +128,13 @@ const api = async <T>(
 
       if (response.status === 403) {
         throw new ApiError(
-          errorMessage || "Acceso denegado. No tienes permisos suficientes.",
+          errorMessage || "Acceso denegado. Se requiere rol de administrador.",
           403
         );
       }
 
       throw new ApiError(
-        errorMessage || "Error en la solicitud",
+        errorMessage || "Error en la solicitud al servidor",
         response.status
       );
     }
@@ -144,6 +152,15 @@ const api = async <T>(
     console.error(`[${method}] ${url} - Fetch error:`, error);
     if (error instanceof ApiError) {
       throw error;
+    }
+    if (
+      error instanceof TypeError &&
+      error.message.includes("Failed to fetch")
+    ) {
+      throw new ApiError(
+        `Error de CORS o servidor no disponible. URL: ${url}, Método: ${method}. Verifica la configuración del servidor o la conexión de red.`,
+        0
+      );
     }
     throw new ApiError("Error de red o servidor no disponible", 500);
   }

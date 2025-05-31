@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRealTime } from "../../context/RealTimeContext";
 import { useNavigate } from "react-router-dom";
+import { useAlert } from "../common/AlertManager";
 import api from "../../services/api";
 
 interface Notification {
@@ -26,26 +27,50 @@ const Header: React.FC = () => {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const { user, logout } = useAuth();
   const { isRealTime, subscribeToUpdates } = useRealTime();
+  const { showAlert } = useAlert();
   const navigate = useNavigate();
   const notificationsRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const data = await api<Notification[]>(
-        "/analytics/notifications",
-        "GET"
-      );
+      const data = await api<Notification[]>("/analytics/notifications", "GET");
       setNotifications(data);
-      setError(null);
+      console.log("Notifications fetched:", data);
     } catch (error: any) {
       console.error("Error fetching notifications:", error);
-      setError("No se pudieron cargar las notificaciones");
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudieron cargar las notificaciones";
+      showAlert("error", message, 4000);
     }
-  }, []);
+  }, [showAlert]);
+
+  const deleteNotification = useCallback(
+    async (id: number) => {
+      try {
+        await api(`/notifications/${id}`, "DELETE");
+        setNotifications((prev) =>
+          prev.filter((notification) => notification.id !== id)
+        );
+        showAlert("success", "Notificación eliminada con éxito", 4000);
+      } catch (error: any) {
+        console.error("Error deleting notification:", error);
+        // Only show error alert if the deletion actually failed (not for 204)
+        if (error.status !== 204) {
+          showAlert(
+            "error",
+            error.message || "No se pudo eliminar la notificación",
+            4000
+          );
+        }
+      }
+    },
+    [showAlert]
+  );
 
   useEffect(() => {
     fetchNotifications();
@@ -58,7 +83,6 @@ const Header: React.FC = () => {
     }
   }, [fetchNotifications, isRealTime, subscribeToUpdates]);
 
-  // Close notifications and user dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -86,7 +110,7 @@ const Header: React.FC = () => {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    setUserDropdownOpen(false); // Close dropdown immediately
+    setUserDropdownOpen(false);
     try {
       await api("/auth/logout", "POST");
     } catch (error) {
@@ -95,7 +119,7 @@ const Header: React.FC = () => {
         error
       );
     } finally {
-      logout(); // Clear token and user state
+      logout();
       setIsLoggingOut(false);
       navigate("/login", { replace: true });
     }
@@ -131,18 +155,6 @@ const Header: React.FC = () => {
           {getPageTitle()}
         </div>
         <div className="flex items-center space-x-4">
-          {/* Error Display */}
-          {error && (
-            <div className="fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg z-50">
-              {error}
-              <button
-                onClick={() => setError(null)}
-                className="ml-2 text-white underline"
-              >
-                Cerrar
-              </button>
-            </div>
-          )}
           {/* Notifications */}
           <div className="relative" ref={notificationsRef}>
             <button
@@ -172,72 +184,103 @@ const Header: React.FC = () => {
             </button>
             {notificationsOpen && (
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg z-10 animate-slide-down">
-                <div className="p-4 border-b border-gray-200">
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-gray-800">
                     Notificaciones
                   </h3>
+                  <button
+                    onClick={fetchNotifications}
+                    className="text-sm text-indigo-600 hover:text-indigo-800"
+                    aria-label="Refrescar notificaciones"
+                  >
+                    Refrescar
+                  </button>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
                   {notifications.length > 0 ? (
                     notifications.map((notification) => (
-                      <button
+                      <div
                         key={notification.id}
-                        onClick={() => {
-                          if (notification.link) navigate(notification.link);
-                          setNotificationsOpen(false);
-                        }}
-                        className="w-full text-left p-4 border-b border-gray-200 hover:bg-gray-50 transition-all"
+                        className="w-full text-left p-4 border-b border-gray-200 hover:bg-gray-50 transition-all flex justify-between items-center"
                       >
-                        <div className="flex">
-                          <div className="flex-shrink-0">
-                            <div
-                              className={`bg-${notification.color}-100 rounded-full p-2`}
-                            >
-                              <svg
-                                className={`w-5 h-5 text-${notification.color}-600`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg"
+                        <button
+                          onClick={() => {
+                            if (notification.link) navigate(notification.link);
+                            setNotificationsOpen(false);
+                          }}
+                          className="flex-1 text-left"
+                        >
+                          <div className="flex">
+                            <div className="flex-shrink-0">
+                              <div
+                                className={`bg-${notification.color}-100 rounded-full p-2`}
                               >
-                                {notification.icon === "user-plus" && (
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-                                  />
-                                )}
-                                {notification.icon === "image" && (
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                  />
-                                )}
-                                {notification.icon ===
-                                  "exclamation-triangle" && (
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                  />
-                                )}
-                              </svg>
+                                <svg
+                                  className={`w-5 h-5 text-${notification.color}-600`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                >
+                                  {notification.icon === "user-plus" && (
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                                    />
+                                  )}
+                                  {notification.icon === "image" && (
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    />
+                                  )}
+                                  {notification.icon ===
+                                    "exclamation-triangle" && (
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                  )}
+                                </svg>
+                              </div>
+                            </div>
+                            <div className="ml-3">
+                              <p className="text-sm font-medium text-gray-900">
+                                {notification.text}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {notification.time}
+                              </p>
                             </div>
                           </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">
-                              {notification.text}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {notification.time}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
+                        </button>
+                        <button
+                          onClick={() => deleteNotification(notification.id)}
+                          className="ml-2 text-red-600 hover:text-red-800"
+                          aria-label="Eliminar notificación"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     ))
                   ) : (
                     <div className="p-4 text-center text-gray-500">

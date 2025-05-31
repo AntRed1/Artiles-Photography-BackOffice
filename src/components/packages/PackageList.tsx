@@ -13,7 +13,7 @@ const PackageCard: React.FC<{
   onDelete: (id: number, title: string) => void;
 }> = ({ pkg, onEdit, onDelete }) => {
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-lg">
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden transition-transform hover:scale-[1.02] hover:shadow-md">
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={pkg.imageUrl || "/placeholder-image.jpg"}
@@ -22,18 +22,17 @@ const PackageCard: React.FC<{
           loading="lazy"
           onError={(e) => (e.currentTarget.src = "/placeholder-image.jpg")}
         />
-        <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+        <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
           <button
             onClick={() => onEdit(pkg)}
-            className="p-2 bg-white text-gray-800 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Editar paquete"
+            className="p-2 bg-white text-gray-800 rounded-full hover:bg-gray-100"
+            aria-label={`Editar ${pkg.title}`}
           >
             <svg
               className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 strokeLinecap="round"
@@ -45,15 +44,14 @@ const PackageCard: React.FC<{
           </button>
           <button
             onClick={() => onDelete(pkg.id, pkg.title)}
-            className="p-2 bg-white text-red-600 rounded-full hover:bg-red-50 transition-colors"
-            aria-label="Eliminar paquete"
+            className="p-2 bg-white text-red-600 rounded-full hover:bg-red-50"
+            aria-label={`Eliminar ${pkg.title}`}
           >
             <svg
               className="w-5 h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
             >
               <path
                 strokeLinecap="round"
@@ -65,17 +63,19 @@ const PackageCard: React.FC<{
           </button>
         </div>
       </div>
-      <div className="p-4">
+      <div className="p-5">
         <h3 className="text-lg font-semibold text-gray-900 truncate">
           {pkg.title}
         </h3>
-        <p className="text-sm text-gray-600 line-clamp-2">{pkg.description}</p>
+        <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+          {pkg.description}
+        </p>
         {pkg.showPrice ? (
           <p className="text-lg font-bold text-indigo-600 mt-2">
             ${pkg.price.toFixed(2)}
           </p>
         ) : (
-          <p className="text-sm text-gray-600 mt-2">Precio no disponible</p>
+          <p className="text-sm text-gray-600 mt-2 italic">Consultar precio</p>
         )}
         <p
           className={`text-sm mt-1 ${
@@ -85,15 +85,14 @@ const PackageCard: React.FC<{
           {pkg.isActive ? "Activo" : "Inactivo"}
         </p>
         {pkg.features.length > 0 && (
-          <ul className="mt-2 space-y-1 text-sm text-gray-600">
+          <ul className="mt-3 space-y-1 text-sm text-gray-600">
             {pkg.features.map((feature, index) => (
               <li key={index} className="flex items-start">
                 <svg
-                  className="w-4 h-4 mr-1 mt-0.5 text-indigo-600"
+                  className="w-4 h-4 mr-1.5 mt-0.5 text-indigo-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
                     strokeLinecap="round"
@@ -120,7 +119,12 @@ const PackageList: React.FC<PackageListProps> = ({
   return (
     <div>
       {packages.length === 0 ? (
-        <p className="text-gray-500 text-sm">No hay paquetes disponibles.</p>
+        <div className="text-center py-10">
+          <p className="text-gray-500">No hay paquetes disponibles.</p>
+          <p className="text-sm text-gray-400 mt-1">
+            Crea un nuevo paquete para comenzar.
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {packages.map((pkg) => (
