@@ -9,7 +9,7 @@ import {
   sendEmail,
 } from "../services/contactMessageService";
 import Modal from "../components/common/Modal";
-import { useAlert } from "../components/common/AlertManager"; // Import the useAlert hook
+import { useAlert } from "../components/common/AlertManager";
 
 const ContactMessagesPage: React.FC = () => {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
@@ -56,7 +56,7 @@ const ContactMessagesPage: React.FC = () => {
     [key: string]: string;
   }>({});
   const navigate = useNavigate();
-  const { showAlert } = useAlert(); // Use the alert hook
+  const { showAlert } = useAlert();
 
   useEffect(() => {
     const token = localStorage.getItem("jwt");
@@ -223,7 +223,13 @@ const ContactMessagesPage: React.FC = () => {
         );
         navigate("/login");
       } else {
-        showAlert("error", "Error al reenviar el correo");
+        showAlert(
+          "error",
+          err instanceof Error &&
+            err.message.includes("plantilla no disponible")
+            ? "La plantilla de correo no está disponible"
+            : "Error al reenviar el correo"
+        );
       }
     } finally {
       setLoading(false);
@@ -232,6 +238,7 @@ const ContactMessagesPage: React.FC = () => {
 
   const handleCustomEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Datos del formulario:', customEmailData);
     if (!validateCustomEmailForm()) return;
 
     setLoading(true);
@@ -268,7 +275,13 @@ const ContactMessagesPage: React.FC = () => {
         );
         navigate("/login");
       } else {
-        showAlert("error", "Error al enviar el correo personalizado");
+        showAlert(
+          "error",
+          err instanceof Error &&
+            err.message.includes("plantilla no disponible")
+            ? "La plantilla de correo no está disponible. Contacta al administrador."
+            : "Error al enviar el correo personalizado"
+        );
       }
     } finally {
       setLoading(false);

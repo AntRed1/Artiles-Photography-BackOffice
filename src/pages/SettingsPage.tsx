@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -7,6 +6,7 @@ import {
   faSearch,
   faLocationCrosshairs,
   faClock,
+  faBell,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   faInstagram,
@@ -26,6 +26,7 @@ import {
   getLegalByType,
   updateLegal,
 } from "../services/configService";
+import { updateReminderCron } from "../services/appointmentService";
 import { useAlert } from "../components/common/AlertManager";
 import api from "../services/api";
 
@@ -38,6 +39,7 @@ const SettingsPage: React.FC = () => {
   const [termsAndConditions, setTermsAndConditions] =
     useState<LegalResponse | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [cronExpression, setCronExpression] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { showAlert } = useAlert();
@@ -63,6 +65,7 @@ const SettingsPage: React.FC = () => {
         setContactInfo(contactData);
         setPrivacyPolicy(privacyData);
         setTermsAndConditions(termsData);
+        setCronExpression(configData.reminderCron || "");
       } catch (err: any) {
         setError(
           `Error al cargar configuración: ${err.message || "Error desconocido"}`
@@ -288,6 +291,38 @@ const SettingsPage: React.FC = () => {
         `Error al eliminar información de contacto: ${
           err.message || "Error desconocido"
         }`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCronSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await updateReminderCron(cronExpression);
+      showAlert(
+        "success",
+        "Cron de recordatorios actualizado exitosamente",
+        3000
+      );
+    } catch (err: any) {
+      console.error("Error en handleCronSubmit:", err);
+      let errorMessage = err.message || "Error desconocido";
+      if (err.status === 403) {
+        errorMessage =
+          "Acceso denegado. Verifica que tienes permisos de administrador.";
+      } else if (err.status === 400) {
+        errorMessage = "Expresión cron inválida. Verifica el formato.";
+      } else if (err.status === 500) {
+        errorMessage =
+          "Error del servidor al actualizar el cron. Contacta al soporte.";
+      }
+      setError(`Error al guardar cron de recordatorios: ${errorMessage}`);
+      showAlert(
+        "error",
+        `Error al guardar cron de recordatorios: ${errorMessage}`
       );
     } finally {
       setLoading(false);
@@ -1146,6 +1181,72 @@ const SettingsPage: React.FC = () => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Configuración de Recordatorios */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="p-6 bg-teal-50">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <FontAwesomeIcon
+                  icon={faBell}
+                  className="text-teal-600 mr-3 text-lg"
+                />
+                Configuración de Recordatorios
+              </h2>
+            </div>
+            <div className="p-6">
+              <form onSubmit={handleCronSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Expresión Cron para Recordatorios
+                  </label>
+                  <input
+                    type="text"
+                    value={cronExpression}
+                    onChange={(e) => setCronExpression(e.target.value)}
+                    className="border border-gray-200 rounded-lg text-gray-900 w-full text-sm p-3 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-colors"
+                    placeholder="Ejemplo: 0 0 8 * * * (todos los días a las 8 AM)"
+                    disabled={loading}
+                  />
+                  <p className="mt-2 text-sm text-gray-500">
+                    Formato cron: segundos minutos horas día-mes mes día-semana.
+                    Ejemplo: <code>0 0 8 * * *</code> ejecuta diariamente a las
+                    8 AM.
+                  </p>
+                </div>
+                <div className="pt-6">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg flex items-center space-x-2 transition-transform hover:scale-105 disabled:opacity-50"
+                  >
+                    {loading && (
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                        />
+                      </svg>
+                    )}
+                    <span>Actualizar Cron</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

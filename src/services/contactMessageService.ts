@@ -58,7 +58,6 @@ export const invalidateMessagesCache = (): void => {
  * @throws ContactMessageServiceError si ocurre un error en la solicitud.
  */
 export const getContactMessages = async (): Promise<ContactMessage[]> => {
-  // Verificar si la caché es válida
   if (
     messageCache &&
     cacheTimestamp &&
@@ -78,7 +77,6 @@ export const getContactMessages = async (): Promise<ContactMessage[]> => {
       API_ROUTES.CONTACT_MESSAGES,
       "GET"
     );
-    // Actualizar caché
     messageCache = messages;
     cacheTimestamp = Date.now();
     return messages;
@@ -158,7 +156,6 @@ export const updateContactMessage = async (
     );
   }
 
-  // Validar campos obligatorios
   if (!data.name || !data.email || !data.message) {
     console.error(
       `[updateContactMessage] Datos inválidos: ${JSON.stringify(data)}`
@@ -183,7 +180,6 @@ export const updateContactMessage = async (
       "PUT",
       data
     );
-    // Invalidar caché al actualizar un mensaje
     invalidateMessagesCache();
     return updatedMessage;
   } catch (error) {
@@ -223,7 +219,6 @@ export const deleteContactMessage = async (id: number): Promise<void> => {
       )}`
     );
     await api<void>(API_ROUTES.CONTACT_MESSAGE_BY_ID(id), "DELETE");
-    // Invalidar caché al eliminar un mensaje
     invalidateMessagesCache();
   } catch (error) {
     const errorMessage =
@@ -243,12 +238,11 @@ export const deleteContactMessage = async (id: number): Promise<void> => {
 };
 
 /**
- * Envía un correo, ya sea reenviando el correo de confirmación para un mensaje específico o enviando un correo personalizado.
+ * Envía un correo, ya sea reenviando el correo de confirmación para un mensaje específico o enviando un correo personalizado usando una plantilla de la base de datos.
  * @param data - Los datos del correo a enviar.
  * @throws ContactMessageServiceError si los datos son inválidos o ocurre un error.
  */
 export const sendEmail = async (data: SendEmailData): Promise<void> => {
-  // Validar datos
   if (data.messageId) {
     if (!Number.isInteger(data.messageId) || data.messageId <= 0) {
       console.error(`[sendEmail] ID de mensaje inválido: ${data.messageId}`);
@@ -296,7 +290,7 @@ export const sendEmail = async (data: SendEmailData): Promise<void> => {
         : error instanceof ApiError && error.status === 403
         ? "No tienes permisos para enviar correos"
         : error instanceof ApiError && error.status === 404
-        ? "Mensaje no encontrado"
+        ? "Mensaje no encontrado o plantilla no disponible"
         : "Error al enviar el correo";
     console.error(`[sendEmail] Error: ${errorMessage}`, error);
     throw new ContactMessageServiceError(

@@ -15,11 +15,12 @@ import TestimonialsPage from "./pages/TestimonialsPage";
 import ContactMessagesPage from "./pages/ContactMessagesPage";
 import SettingsPage from "./pages/SettingsPage";
 import LogsActuatorPage from "./pages/LogsActuatorPage";
+import AppointmentsPage from "./pages/AppointmentsPage";
+import GoogleCalendarPage from "./pages/GoogleCalendarPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 
-// Layout component to avoid repetition
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="flex h-screen bg-gray-100">
     <Sidebar />
@@ -36,7 +37,6 @@ const ProtectedRoute: React.FC<{
 }> = ({ children, requireAdmin = false }) => {
   const { isAuthenticated, isAdmin, loading } = useAuth();
 
-  // Show a loading state while authentication is being resolved
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100">
@@ -152,6 +152,30 @@ const App: React.FC = () => {
                       <MainLayout>
                         <ErrorBoundary>
                           <ContactMessagesPage />
+                        </ErrorBoundary>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/appointments"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <MainLayout>
+                        <ErrorBoundary>
+                          <AppointmentsPage />
+                        </ErrorBoundary>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/google-calendar"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <MainLayout>
+                        <ErrorBoundary>
+                          <GoogleCalendarPage />
                         </ErrorBoundary>
                       </MainLayout>
                     </ProtectedRoute>

@@ -12,6 +12,8 @@ import {
   FaCog,
   FaFileAlt,
   FaEnvelope,
+  FaCalendarAlt,
+  FaGoogle,
 } from "react-icons/fa";
 
 const Sidebar: React.FC = () => {
@@ -41,6 +43,18 @@ const Sidebar: React.FC = () => {
       path: "/contact-messages",
       icon: <FaEnvelope />,
       label: "Mensajes de Contacto",
+      adminOnly: true,
+    },
+    {
+      path: "/appointments",
+      icon: <FaCalendarAlt />,
+      label: "Gestión de Citas",
+      adminOnly: true,
+    },
+    {
+      path: "/google-calendar",
+      icon: <FaGoogle />,
+      label: "Google Calendar",
       adminOnly: true,
     },
     {
