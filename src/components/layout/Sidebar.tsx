@@ -13,7 +13,6 @@ import {
   FaFileAlt,
   FaEnvelope,
   FaCalendarAlt,
-  FaGoogle,
 } from "react-icons/fa";
 
 const Sidebar: React.FC = () => {
@@ -49,12 +48,6 @@ const Sidebar: React.FC = () => {
       path: "/appointments",
       icon: <FaCalendarAlt />,
       label: "Gestión de Citas",
-      adminOnly: true,
-    },
-    {
-      path: "/google-calendar",
-      icon: <FaGoogle />,
-      label: "Google Calendar",
       adminOnly: true,
     },
     {

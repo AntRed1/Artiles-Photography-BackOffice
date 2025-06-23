@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { fetchVisitors } from "../../services/plausibleService";
+import React, { useState } from "react";
 import {
   LineChart,
   Line,
@@ -11,38 +10,22 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface PlausibleTimeseries {
+interface CloudinaryTrend {
   date: string;
-  visitors: number;
-  pageviews: number;
+  transformations: number;
+  storage: number;
 }
 
 interface ActivityChartProps {
-  period: string;
+  trendData: CloudinaryTrend[];
 }
 
-const ActivityChart: React.FC<ActivityChartProps> = ({ period }) => {
-  const [data, setData] = useState<PlausibleTimeseries[]>([]);
+const ActivityChart: React.FC<ActivityChartProps> = ({ trendData }) => {
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const timeseries = await fetchVisitors(period);
-      setData(timeseries);
-      setError(null);
-    } catch (error) {
-      console.error("Error fetching Plausible data:", error);
-      setError("No se pudo cargar el gráfico de actividad.");
-    } finally {
-      setLoading(false);
-    }
-  }, [period]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  if (!trendData || trendData.length === 0) {
+    setError("No hay datos disponibles para el gráfico de tendencias.");
+  }
 
   if (error) {
     return (
@@ -59,55 +42,67 @@ const ActivityChart: React.FC<ActivityChartProps> = ({ period }) => {
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-lg font-semibold mb-4 text-gray-800">
-        Actividad del Sitio
+        Tendencias de Cloudinary
       </h2>
-      {loading && (
-        <div className="text-center p-2 text-gray-600 text-sm animate-pulse">
-          Cargando gráfico...
-        </div>
-      )}
       <ResponsiveContainer width="100%" height={400}>
         <LineChart
-          data={data}
+          data={trendData}
           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-          aria-label="Gráfico de actividad del sitio"
+          aria-label="Gráfico de tendencias de Cloudinary"
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="date"
             tickFormatter={(date) =>
-              new Date(date).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            }
-          />
-          <YAxis />
-          <Tooltip
-            formatter={(value: number) => [value.toLocaleString(), ""]}
-            labelFormatter={(label) =>
-              new Date(label).toLocaleString([], {
-                hour: "2-digit",
-                minute: "2-digit",
+              new Date(date).toLocaleDateString([], {
                 day: "numeric",
                 month: "short",
+              })
+            }
+            stroke="#6b7280"
+            fontSize={12}
+          />
+          <YAxis yAxisId="left" stroke="#6b7280" fontSize={12} />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            stroke="#6b7280"
+            fontSize={12}
+            tickFormatter={(value) => `${value.toFixed(0)} MB`}
+          />
+          <Tooltip
+            formatter={(value: number, name: string) => [
+              name === "transformations"
+                ? value.toLocaleString()
+                : `${value.toFixed(2)} MB`,
+              name === "transformations"
+                ? "Transformaciones"
+                : "Almacenamiento",
+            ]}
+            labelFormatter={(label) =>
+              new Date(label).toLocaleDateString([], {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
               })
             }
           />
           <Legend />
           <Line
+            yAxisId="left"
             type="monotone"
-            dataKey="visitors"
-            stroke="#4f46e5"
-            name="Visitantes Únicos"
+            dataKey="transformations"
+            stroke="#8b5cf6"
+            name="Transformaciones"
             activeDot={{ r: 8 }}
             animationDuration={1000}
           />
           <Line
+            yAxisId="right"
             type="monotone"
-            dataKey="pageviews"
-            stroke="#22c55e"
-            name="Vistas de Página"
+            dataKey="storage"
+            stroke="#3b82f6"
+            name="Almacenamiento (MB)"
             activeDot={{ r: 8 }}
             animationDuration={1000}
           />

@@ -39,7 +39,7 @@ const ContactMessagesPage: React.FC = () => {
     date: string;
     body: string;
   }>({
-    from: "",
+    from: "info@artilesphotography.com",
     to: "",
     subject: "",
     date: new Date().toLocaleString("es-ES", {
@@ -227,8 +227,8 @@ const ContactMessagesPage: React.FC = () => {
           "error",
           err instanceof Error &&
             err.message.includes("plantilla no disponible")
-            ? "La plantilla de correo no está disponible"
-            : "Error al reenviar el correo"
+            ? "La plantilla de correo no está disponible. Contacta al administrador."
+            : "Error al reenviar el correo. Verifica la configuración de plantillas."
         );
       }
     } finally {
@@ -238,7 +238,6 @@ const ContactMessagesPage: React.FC = () => {
 
   const handleCustomEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Datos del formulario:', customEmailData);
     if (!validateCustomEmailForm()) return;
 
     setLoading(true);
@@ -252,7 +251,7 @@ const ContactMessagesPage: React.FC = () => {
       });
       setCustomEmailModalOpen(false);
       setCustomEmailData({
-        from: "",
+        from: "info@artilesphotography.com",
         to: "",
         subject: "",
         date: new Date().toLocaleString("es-ES", {
@@ -280,7 +279,7 @@ const ContactMessagesPage: React.FC = () => {
           err instanceof Error &&
             err.message.includes("plantilla no disponible")
             ? "La plantilla de correo no está disponible. Contacta al administrador."
-            : "Error al enviar el correo personalizado"
+            : "Error al enviar el correo personalizado. Verifica la configuración."
         );
       }
     } finally {
@@ -731,7 +730,7 @@ const ContactMessagesPage: React.FC = () => {
           onClose={() => {
             setCustomEmailModalOpen(false);
             setCustomEmailData({
-              from: "",
+              from: "info@artilesphotography.com",
               to: "",
               subject: "",
               date: new Date().toLocaleString("es-ES", {
@@ -764,7 +763,7 @@ const ContactMessagesPage: React.FC = () => {
                     from: e.target.value,
                   })
                 }
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
                   customEmailErrors.from ? "border-red-500" : "border-gray-300"
                 }`}
                 disabled={loading}
@@ -799,7 +798,7 @@ const ContactMessagesPage: React.FC = () => {
                 onChange={(e) =>
                   setCustomEmailData({ ...customEmailData, to: e.target.value })
                 }
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
                   customEmailErrors.to ? "border-red-500" : "border-gray-300"
                 }`}
                 disabled={loading}
@@ -837,7 +836,7 @@ const ContactMessagesPage: React.FC = () => {
                     subject: e.target.value,
                   })
                 }
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
                   customEmailErrors.subject
                     ? "border-red-500"
                     : "border-gray-300"
@@ -877,7 +876,7 @@ const ContactMessagesPage: React.FC = () => {
                     date: e.target.value,
                   })
                 }
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
                   customEmailErrors.date ? "border-red-500" : "border-gray-300"
                 }`}
                 disabled={loading}
@@ -904,7 +903,7 @@ const ContactMessagesPage: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Mensaje
+                Cuerpo del Mensaje
               </label>
               <textarea
                 value={customEmailData.body}
@@ -914,10 +913,10 @@ const ContactMessagesPage: React.FC = () => {
                     body: e.target.value,
                   })
                 }
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors ${
                   customEmailErrors.body ? "border-red-500" : "border-gray-300"
                 }`}
-                rows={4}
+                rows={6}
                 disabled={loading}
               ></textarea>
               {customEmailErrors.body && (
@@ -946,7 +945,7 @@ const ContactMessagesPage: React.FC = () => {
                 onClick={() => {
                   setCustomEmailModalOpen(false);
                   setCustomEmailData({
-                    from: "",
+                    from: "info@artilesphotography.com",
                     to: "",
                     subject: "",
                     date: new Date().toLocaleString("es-ES", {
@@ -1000,57 +999,52 @@ const ContactMessagesPage: React.FC = () => {
       )}
       {deleteModal && (
         <Modal
-          isOpen={true}
+          isOpen={!!deleteModal}
           onClose={() => setDeleteModal(null)}
           title="Confirmar Eliminación"
         >
-          <div className="space-y-6">
-            <p className="text-gray-600">
-              ¿Estás seguro de eliminar el mensaje de{" "}
-              <strong>{deleteModal.name}</strong>? Esta acción es irreversible.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setDeleteModal(null)}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => handleDelete(deleteModal.id)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
-                      />
-                    </svg>
-                    <span>Eliminando...</span>
-                  </>
-                ) : (
-                  <span>Eliminar</span>
-                )}
-              </button>
-            </div>
+          <p className="text-gray-600 mb-6">
+            ¿Estás seguro de que deseas eliminar el mensaje de{" "}
+            <strong>{deleteModal.name}</strong>? Esta acción no se puede
+            deshacer.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setDeleteModal(null)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={() => handleDelete(deleteModal.id)}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center space-x-2"
+              disabled={loading}
+            >
+              {loading && (
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                  />
+                </svg>
+              )}
+              <span>Eliminar</span>
+            </button>
           </div>
         </Modal>
       )}

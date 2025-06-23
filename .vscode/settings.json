@@ -13,5 +13,6 @@
     "Visualizador"
   ],
   "postman.settings.dotenv-detection-notification-visibility": false,
-  "DockerRun.DisableDockerrc": true
+  "DockerRun.DisableDockerrc": true,
+  "java.jdt.ls.lombokSupport.enabled": true
 }

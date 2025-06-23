@@ -16,7 +16,6 @@ import ContactMessagesPage from "./pages/ContactMessagesPage";
 import SettingsPage from "./pages/SettingsPage";
 import LogsActuatorPage from "./pages/LogsActuatorPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
-import GoogleCalendarPage from "./pages/GoogleCalendarPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
@@ -164,18 +163,6 @@ const App: React.FC = () => {
                       <MainLayout>
                         <ErrorBoundary>
                           <AppointmentsPage />
-                        </ErrorBoundary>
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/google-calendar"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <MainLayout>
-                        <ErrorBoundary>
-                          <GoogleCalendarPage />
                         </ErrorBoundary>
                       </MainLayout>
                     </ProtectedRoute>

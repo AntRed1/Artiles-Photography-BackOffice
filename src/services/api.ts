@@ -2,6 +2,7 @@ import environment from "../environments/environment";
 
 export class ApiError extends Error {
   status: number;
+
   constructor(message: string, status: number) {
     super(message);
     this.status = status;
@@ -15,10 +16,10 @@ const fetchWithTimeout = (
   timeout = 10000
 ): Promise<Response> => {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new ApiError("Tiempo de espera excedido", 408)),
-      timeout
-    );
+    const timer = setTimeout(() => {
+      reject(new ApiError("Tiempo de espera excedido", 408));
+    }, timeout);
+
     fetch(url, options)
       .then((response) => {
         clearTimeout(timer);
@@ -38,6 +39,7 @@ const api = async <T>(
   params?: Record<string, string | number | boolean>
 ): Promise<T> => {
   const url = new URL(`${environment.apiUrl}${endpoint}`);
+
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -47,19 +49,16 @@ const api = async <T>(
   }
 
   const token = localStorage.getItem("jwt");
-  console.log(
-    `[${method}] ${url} - Token enviado:`,
-    token ? "Presente" : "No token"
-  );
-
   const headers: HeadersInit = {};
+
   if (!(body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   } else {
-    console.warn(`[${method}] ${url} - No se encontró token en localStorage`);
+    console.warn(`[${method}] ${url} - Token no encontrado en localStorage`);
   }
 
   try {
@@ -86,27 +85,7 @@ const api = async <T>(
       responseData = responseText;
     }
 
-    console.log(
-      `[${method}] ${url} - Status: ${response.status}, Response:`,
-      responseData
-    );
-
     if (!response.ok) {
-      console.error(
-        `[${method}] ${url} - Error ${response.status}: ${response.statusText}`,
-        {
-          endpoint,
-          responseText,
-          headers: {
-            ...headers,
-            Authorization: headers["Authorization"]
-              ? "Bearer [oculto]"
-              : "No presente",
-          },
-          body: body instanceof FormData ? [...body.entries()] : body,
-        }
-      );
-
       let errorMessage = responseText;
       if (
         typeof responseData === "object" &&
@@ -116,27 +95,26 @@ const api = async <T>(
         errorMessage = (responseData as { error: string }).error;
       }
 
-      if (response.status === 401) {
-        console.warn(`[${method}] ${url} - Sesión expirada o token inválido`);
-        localStorage.removeItem("jwt");
-        throw new ApiError(
-          errorMessage ||
-            "Sesión expirada. Por favor, inicia sesión nuevamente.",
-          401
-        );
+      switch (response.status) {
+        case 401:
+          localStorage.removeItem("jwt");
+          throw new ApiError(
+            errorMessage || "Sesión expirada. Inicia sesión nuevamente.",
+            401
+          );
+        case 403:
+          throw new ApiError(
+            errorMessage || "Acceso denegado. No tienes permisos suficientes.",
+            403
+          );
+        case 503:
+          throw new ApiError(errorMessage || "Servicio no disponible.", 503);
+        default:
+          throw new ApiError(
+            errorMessage || "Error en la solicitud al servidor.",
+            response.status
+          );
       }
-
-      if (response.status === 403) {
-        throw new ApiError(
-          errorMessage || "Acceso denegado. Se requiere rol de administrador.",
-          403
-        );
-      }
-
-      throw new ApiError(
-        errorMessage || "Error en la solicitud al servidor",
-        response.status
-      );
     }
 
     if (response.status === 204) {
@@ -147,22 +125,25 @@ const api = async <T>(
       return responseData as T;
     }
 
-    throw new ApiError("Respuesta no válida del servidor", 500);
+    throw new ApiError("Respuesta del servidor no válida", 500);
   } catch (error) {
-    console.error(`[${method}] ${url} - Fetch error:`, error);
+    console.error(`[${method}] ${url} - Error en fetch:`, error);
+
     if (error instanceof ApiError) {
       throw error;
     }
+
     if (
       error instanceof TypeError &&
       error.message.includes("Failed to fetch")
     ) {
       throw new ApiError(
-        `Error de CORS o servidor no disponible. URL: ${url}, Método: ${method}. Verifica la configuración del servidor o la conexión de red.`,
+        `No se pudo conectar con el servidor. Verifica la URL o configuración CORS. [${url}]`,
         0
       );
     }
-    throw new ApiError("Error de red o servidor no disponible", 500);
+
+    throw new ApiError("Error inesperado en la red o servidor", 500);
   }
 };
 
