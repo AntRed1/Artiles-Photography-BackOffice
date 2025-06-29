@@ -2,6 +2,10 @@
 import React, { useState, useEffect } from "react";
 import type { Package } from "../../types/package";
 import { useAlert } from "../common/AlertManager";
+import {
+  fetchCloudinaryImages,
+  type CloudinaryResource,
+} from "../../services/cloudinaryService";
 
 interface PackageFormProps {
   pkg: Package | null;
@@ -16,7 +20,8 @@ interface PackageFormProps {
     isActive: boolean;
     showPrice: boolean;
     features: string[];
-  }) => void;
+    publicId?: string | null | undefined;
+  }) => Promise<void>;
   isSubmitting: boolean;
 }
 
@@ -33,15 +38,46 @@ const PackageForm: React.FC<PackageFormProps> = ({
     description: pkg?.description || "",
     price: pkg?.price || 0,
     file: undefined as File | undefined,
-    imageUrl: pkg?.imageUrl || "", // Changed from null to ""
+    imageUrl: pkg?.imageUrl || "",
     isActive: pkg?.isActive ?? true,
     showPrice: pkg?.showPrice ?? true,
     features: pkg?.features || [""],
+    source: pkg?.publicId ? "cloudinary" : ("local" as "local" | "cloudinary"),
+    publicId: pkg?.publicId || null,
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     pkg?.imageUrl || null
   );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [cloudinaryImages, setCloudinaryImages] = useState<
+    CloudinaryResource[]
+  >([]);
+  const [loadingCloudinary, setLoadingCloudinary] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadCloudinaryImages = async () => {
+      setLoadingCloudinary(true);
+      try {
+        const response = await fetchCloudinaryImages(1, 20);
+        if (isMounted) setCloudinaryImages(response.images);
+      } catch {
+        if (isMounted) {
+          showAlert(
+            "error",
+            "No se pudieron cargar las imágenes de Cloudinary",
+            4000
+          );
+        }
+      } finally {
+        if (isMounted) setLoadingCloudinary(false);
+      }
+    };
+    if (formData.source === "cloudinary") loadCloudinaryImages();
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.source, showAlert]);
 
   useEffect(() => {
     return () => {
@@ -65,13 +101,18 @@ const PackageForm: React.FC<PackageFormProps> = ({
           !value || value <= 0 ? "El precio debe ser mayor a 0" : "";
         break;
       case "file":
-        if (!pkg && !value && !formData.imageUrl)
+        if (!pkg && formData.source === "local" && !value && !formData.imageUrl)
           newErrors.file = "Debe seleccionar una imagen";
         else if (value && !["image/jpeg", "image/png"].includes(value.type))
           newErrors.file = "Solo se permiten imágenes JPEG o PNG";
         else if (value && value.size > 5 * 1024 * 1024)
           newErrors.file = "La imagen no debe superar los 5 MB";
         else delete newErrors.file;
+        break;
+      case "publicId":
+        if (!pkg && formData.source === "cloudinary" && !value)
+          newErrors.publicId = "Debe seleccionar una imagen de Cloudinary";
+        else delete newErrors.publicId;
         break;
       case "features":
         newErrors.features =
@@ -102,12 +143,15 @@ const PackageForm: React.FC<PackageFormProps> = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (previewUrl && !pkg?.imageUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      if (previewUrl && !pkg?.imageUrl) URL.revokeObjectURL(previewUrl);
       const newPreviewUrl = URL.createObjectURL(file);
       setPreviewUrl(newPreviewUrl);
-      setFormData({ ...formData, file, imageUrl: newPreviewUrl });
+      setFormData({
+        ...formData,
+        file,
+        imageUrl: newPreviewUrl,
+        publicId: null,
+      });
       validateField("file", file);
     } else {
       setPreviewUrl(pkg?.imageUrl || null);
@@ -115,9 +159,43 @@ const PackageForm: React.FC<PackageFormProps> = ({
         ...formData,
         file: undefined,
         imageUrl: pkg?.imageUrl || "",
+        publicId: null,
       });
       validateField("file", null);
     }
+  };
+
+  const handleCloudinarySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const publicId = e.target.value;
+    if (publicId) {
+      const selectedImage = cloudinaryImages.find(
+        (img) => img.public_id === publicId
+      );
+      if (selectedImage?.secure_url) setPreviewUrl(selectedImage.secure_url);
+      setFormData({
+        ...formData,
+        publicId,
+        file: undefined,
+        imageUrl: selectedImage?.secure_url || "",
+      });
+    } else {
+      setPreviewUrl(pkg?.imageUrl || null);
+      setFormData({
+        ...formData,
+        publicId: null,
+        file: undefined,
+        imageUrl: pkg?.imageUrl || "",
+      });
+    }
+    validateField("publicId", publicId);
+  };
+
+  const handleSourceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const source = e.target.value as "local" | "cloudinary";
+    setFormData({ ...formData, source, file: undefined, publicId: null });
+    setPreviewUrl(pkg?.imageUrl || null);
+    validateField("file", null);
+    validateField("publicId", null);
   };
 
   const handleFeatureChange = (index: number, value: string) => {
@@ -153,12 +231,28 @@ const PackageForm: React.FC<PackageFormProps> = ({
       return;
     }
 
-    onSubmit({
+    const submitData = {
       ...formData,
       price: formData.price || 0,
-      imageUrl: formData.imageUrl || "", // Ensure imageUrl is string
+      imageUrl: formData.imageUrl || "",
       features: formData.features.filter((f) => f.trim() !== ""),
-    });
+    };
+
+    if (!isSubmitting) {
+      try {
+        if (pkg?.id) {
+          onSubmit(submitData);
+        } else if (formData.source === "local" && formData.file) {
+          onSubmit(submitData);
+        } else if (formData.source === "cloudinary" && formData.publicId) {
+          onSubmit({ ...submitData, file: undefined });
+        } else {
+          throw new Error("Debe seleccionar una imagen o archivo");
+        }
+      } catch {
+        showAlert("error", "Error al procesar el paquete", 4000);
+      }
+    }
   };
 
   return (
@@ -201,6 +295,61 @@ const PackageForm: React.FC<PackageFormProps> = ({
               </div>
             )}
           </div>
+        </div>
+      )}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Fuente de la imagen
+        </label>
+        <select
+          value={formData.source}
+          onChange={handleSourceChange}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+          disabled={isSubmitting}
+        >
+          <option value="local">Subir desde equipo</option>
+          <option value="cloudinary">Seleccionar desde Cloudinary</option>
+        </select>
+      </div>
+      {formData.source === "local" && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {pkg ? "Reemplazar imagen (opcional)" : "Subir imagen"}
+          </label>
+          <input
+            type="file"
+            onChange={handleFileChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            accept="image/jpeg,image/png"
+            disabled={isSubmitting}
+          />
+          {errors.file && (
+            <p className="mt-1 text-sm text-red-600">{errors.file}</p>
+          )}
+        </div>
+      )}
+      {formData.source === "cloudinary" && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Seleccionar imagen de Cloudinary
+          </label>
+          <select
+            value={formData.publicId || ""}
+            onChange={handleCloudinarySelect}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            disabled={isSubmitting || loadingCloudinary}
+          >
+            <option value="">Selecciona una imagen</option>
+            {cloudinaryImages.map((img) => (
+              <option key={img.public_id} value={img.public_id}>
+                {img.public_id} ({new Date(img.created_at).toLocaleDateString()}
+                )
+              </option>
+            ))}
+          </select>
+          {errors.publicId && (
+            <p className="mt-1 text-sm text-red-600">{errors.publicId}</p>
+          )}
         </div>
       )}
       <div>
@@ -257,21 +406,6 @@ const PackageForm: React.FC<PackageFormProps> = ({
         />
         {errors.price && (
           <p className="mt-1 text-sm text-red-600">{errors.price}</p>
-        )}
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          {pkg ? "Reemplazar imagen (opcional)" : "Subir imagen"}
-        </label>
-        <input
-          type="file"
-          onChange={handleFileChange}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-          accept="image/jpeg,image/png"
-          disabled={isSubmitting}
-        />
-        {errors.file && (
-          <p className="mt-1 text-sm text-red-600">{errors.file}</p>
         )}
       </div>
       <div className="flex items-center gap-4">

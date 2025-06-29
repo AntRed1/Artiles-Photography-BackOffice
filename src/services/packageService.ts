@@ -60,6 +60,43 @@ export const createPackage = async (
   }
 };
 
+export const selectCloudinaryPackageImage = async (
+  title: string,
+  description: string,
+  price: number,
+  publicId: string,
+  isActive: boolean,
+  showPrice: boolean,
+  features: string[]
+): Promise<Package> => {
+  try {
+    const body = {
+      title,
+      description,
+      price,
+      publicId,
+      isActive,
+      showPrice,
+      features,
+    };
+    const response = await api<PhotographyPackageResponse>(
+      "/packages/admin/cloudinary",
+      "POST",
+      body
+    );
+    return response;
+  } catch (error: unknown) {
+    console.error("Error in selectCloudinaryPackageImage:", error);
+    const message =
+      error instanceof ApiError && error.message.includes("validation")
+        ? "Datos inválidos. Verifica los campos."
+        : error instanceof ApiError
+        ? error.message
+        : "No se pudo seleccionar la imagen de Cloudinary";
+    throw new Error(message);
+  }
+};
+
 export const updatePackage = async (
   id: number,
   data: {
@@ -71,11 +108,15 @@ export const updatePackage = async (
     showPrice: boolean;
     features: string[];
     file?: File;
+    publicId?: string;
   }
 ): Promise<Package> => {
   const formData = new FormData();
   if (data.file) {
     formData.append("file", data.file);
+  }
+  if (data.publicId) {
+    formData.append("publicId", data.publicId);
   }
   formData.append("title", data.title);
   formData.append("description", data.description);

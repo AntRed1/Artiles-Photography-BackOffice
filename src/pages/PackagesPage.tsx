@@ -4,6 +4,7 @@ import {
   createPackage,
   updatePackage,
   deletePackage,
+  selectCloudinaryPackageImage,
 } from "../services/packageService";
 import type { Package } from "../types/package";
 import Modal from "../components/common/Modal";
@@ -102,6 +103,7 @@ const PackagesPage: React.FC = () => {
     isActive: boolean;
     showPrice: boolean;
     features: string[];
+    publicId?: string | null | undefined; // Updated to include null
   }) => {
     setIsSubmitting(true);
     try {
@@ -111,6 +113,8 @@ const PackagesPage: React.FC = () => {
         ...data,
         price: validatedPrice,
         imageUrl: data.imageUrl || "",
+        features: data.features.filter((f) => f.trim() !== ""),
+        publicId: data.publicId || undefined, // Convert null to undefined
       };
 
       if (data.id) {
@@ -145,8 +149,28 @@ const PackagesPage: React.FC = () => {
           `/packages`
         );
         showAlert("success", "Paquete creado con éxito", 4000);
+      } else if (data.publicId) {
+        const newPackage = await selectCloudinaryPackageImage(
+          validatedData.title,
+          validatedData.description,
+          validatedData.price,
+          data.publicId,
+          validatedData.isActive,
+          validatedData.showPrice,
+          validatedData.features
+        );
+        setPackages([...packages, newPackage]);
+        await createNotification(
+          `Nuevo paquete "${data.title}" creado con imagen de Cloudinary`,
+          "image",
+          "green",
+          `/packages`
+        );
+        showAlert("success", "Paquete creado con éxito", 4000);
       } else {
-        throw new Error("El archivo es obligatorio para crear un paquete");
+        throw new Error(
+          "El archivo o una imagen de Cloudinary es obligatorio para crear un paquete"
+        );
       }
       setModalOpen(false);
       setSelectedPackage(null);

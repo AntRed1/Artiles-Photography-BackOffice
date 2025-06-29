@@ -52,16 +52,17 @@ export const createImage = async (data: {
   description: string;
   type: "carousel" | "gallery";
 }): Promise<GalleryItem> => {
-  return uploadImage(data.type, data.file, data.title || "", data.description);
+  return uploadImage(data);
 };
 
-export const uploadImage = async (
-  type: "carousel" | "gallery",
-  file: File,
-  title: string,
-  description: string
-): Promise<GalleryItem> => {
+export const uploadImage = async (data: {
+  type: "carousel" | "gallery";
+  description: string;
+  file: File;
+  title?: string;
+}): Promise<GalleryItem> => {
   try {
+    const { type, description, file, title } = data;
     const formData = new FormData();
     formData.append("file", file);
     if (type === "carousel" && title) {
@@ -112,6 +113,59 @@ export const uploadImage = async (
   }
 };
 
+export const selectCloudinaryImage = async (data: {
+  type: "carousel" | "gallery";
+  description: string;
+  publicId: string;
+  title?: string;
+}): Promise<GalleryItem> => {
+  try {
+    const { type, description, publicId, title } = data;
+    const body = { publicId, description, title };
+    const endpoint =
+      type === "carousel"
+        ? "/carousel/cloudinary"
+        : "/gallery/admin/gallery/cloudinary";
+    const response = await api<CarouselResponse | GalleryResponse>(
+      endpoint,
+      "POST",
+      body
+    );
+    if (type === "carousel") {
+      const carouselResponse = response as CarouselResponse;
+      return {
+        id: carouselResponse.id,
+        url: carouselResponse.url,
+        title: carouselResponse.title,
+        description: carouselResponse.description,
+        type: "carousel",
+      };
+    } else {
+      const galleryResponse = response as GalleryResponse;
+      return {
+        id: galleryResponse.id,
+        imageUrl: galleryResponse.imageUrl,
+        description: galleryResponse.description,
+        uploadedAt: galleryResponse.uploadedAt,
+        type: "gallery",
+      };
+    }
+  } catch (error) {
+    if (error instanceof ApiError) {
+      if (error.status === 403) {
+        throw new ApiError(
+          "No autorizado: Se requiere rol de administrador",
+          403
+        );
+      }
+      if (error.status === 400) {
+        throw new ApiError(error.message, 400);
+      }
+    }
+    throw new ApiError("Error al seleccionar imagen de Cloudinary", 500);
+  }
+};
+
 export const updateImage = async (
   id: number,
   data: {
@@ -119,6 +173,7 @@ export const updateImage = async (
     title?: string;
     description: string;
     type: "carousel" | "gallery";
+    publicId?: string;
   }
 ): Promise<GalleryItem> => {
   try {
@@ -136,6 +191,16 @@ export const updateImage = async (
         endpoint,
         "PUT",
         formData
+      );
+    } else if (data.publicId) {
+      response = await api<CarouselResponse | GalleryResponse>(
+        endpoint,
+        "PUT",
+        {
+          title: data.title,
+          description: data.description,
+          publicId: data.publicId,
+        }
       );
     } else {
       response = await api<CarouselResponse | GalleryResponse>(
