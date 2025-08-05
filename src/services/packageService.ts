@@ -11,6 +11,7 @@ interface PhotographyPackageResponse {
   isActive: boolean;
   showPrice: boolean;
   features: string[];
+  publicId?: string;
 }
 
 export const getPackages = async (): Promise<Package[]> => {
@@ -41,6 +42,7 @@ export const createPackage = async (
   features.forEach((feature, index) => {
     formData.append(`features[${index}]`, feature);
   });
+
   try {
     const response = await api<PhotographyPackageResponse>(
       "/packages/admin/upload",
@@ -108,31 +110,57 @@ export const updatePackage = async (
     showPrice: boolean;
     features: string[];
     file?: File;
-    publicId?: string;
+    publicId?: string | null;
   }
 ): Promise<Package> => {
+  console.log("updatePackage called with data:", {
+    id,
+    hasFile: !!data.file,
+    publicId: data.publicId,
+    title: data.title,
+  });
+
   const formData = new FormData();
-  if (data.file) {
-    formData.append("file", data.file);
-  }
-  if (data.publicId) {
-    formData.append("publicId", data.publicId);
-  }
+
+  // Campos básicos siempre presentes
   formData.append("title", data.title);
   formData.append("description", data.description);
   formData.append("price", data.price.toString());
-  formData.append("imageUrl", data.imageUrl);
   formData.append("isActive", data.isActive.toString());
   formData.append("showPrice", data.showPrice.toString());
+
+  // Agregar features
   data.features.forEach((feature, index) => {
     formData.append(`features[${index}]`, feature);
   });
+
+  // Manejar imagen - prioridad: archivo > publicId > mantener actual
+  if (data.file && data.file.size > 0) {
+    console.log("Adding file to FormData:", data.file.name);
+    formData.append("file", data.file);
+  } else if (data.publicId && data.publicId.trim() !== "") {
+    console.log("Adding publicId to FormData:", data.publicId);
+    formData.append("publicId", data.publicId);
+  } else {
+    console.log("No new image provided, keeping current image");
+  }
+
+  // Debug: log FormData contents
+  console.log("FormData contents:");
+  for (const [key, value] of formData.entries()) {
+    console.log(
+      `${key}:`,
+      value instanceof File ? `File: ${value.name}` : value
+    );
+  }
+
   try {
     const response = await api<PhotographyPackageResponse>(
       `/packages/admin/${id}`,
       "PUT",
       formData
     );
+    console.log("Update successful:", response);
     return response;
   } catch (error: unknown) {
     console.error("Error in updatePackage:", {
@@ -140,6 +168,7 @@ export const updatePackage = async (
       status: error instanceof ApiError ? error.status : "unknown",
       message: error instanceof ApiError ? error.message : "Unknown error",
     });
+
     const message =
       error instanceof ApiError && error.message.includes("validation")
         ? "Datos inválidos. Verifica los campos."

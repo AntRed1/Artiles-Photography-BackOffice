@@ -103,9 +103,17 @@ const PackagesPage: React.FC = () => {
     isActive: boolean;
     showPrice: boolean;
     features: string[];
-    publicId?: string | null | undefined; // Updated to include null
+    publicId?: string | null;
   }) => {
     setIsSubmitting(true);
+
+    console.log("handleSubmit called with:", {
+      id: data.id,
+      hasFile: !!data.file,
+      publicId: data.publicId,
+      title: data.title,
+    });
+
     try {
       const validatedPrice =
         isNaN(data.price) || data.price <= 0 ? 0 : data.price;
@@ -114,16 +122,20 @@ const PackagesPage: React.FC = () => {
         price: validatedPrice,
         imageUrl: data.imageUrl || "",
         features: data.features.filter((f) => f.trim() !== ""),
-        publicId: data.publicId || undefined, // Convert null to undefined
+        publicId: data.publicId || undefined,
       };
 
       if (data.id) {
+        // ACTUALIZACIÓN
+        console.log("Updating package with ID:", data.id);
         await updatePackage(data.id, validatedData);
+
         setPackages(
           packages.map((p) =>
             p.id === data.id ? { ...p, ...validatedData } : p
           )
         );
+
         await createNotification(
           `Paquete "${data.title}" actualizado`,
           "image",
@@ -131,17 +143,40 @@ const PackagesPage: React.FC = () => {
           `/packages`
         );
         showAlert("success", "Paquete actualizado con éxito", 4000);
-      } else if (data.file) {
-        const newPackage = await createPackage(
-          validatedData.title,
-          validatedData.description,
-          validatedData.price,
-          data.file,
-          validatedData.isActive,
-          validatedData.showPrice,
-          validatedData.features
-        );
+      } else {
+        // CREACIÓN
+        let newPackage: Package;
+
+        if (data.file && data.file.size > 0) {
+          console.log("Creating package with file");
+          newPackage = await createPackage(
+            validatedData.title,
+            validatedData.description,
+            validatedData.price,
+            data.file,
+            validatedData.isActive,
+            validatedData.showPrice,
+            validatedData.features
+          );
+        } else if (data.publicId && data.publicId.trim() !== "") {
+          console.log("Creating package with Cloudinary image:", data.publicId);
+          newPackage = await selectCloudinaryPackageImage(
+            validatedData.title,
+            validatedData.description,
+            validatedData.price,
+            data.publicId,
+            validatedData.isActive,
+            validatedData.showPrice,
+            validatedData.features
+          );
+        } else {
+          throw new Error(
+            "Se requiere un archivo o una imagen de Cloudinary para crear un paquete"
+          );
+        }
+
         setPackages([...packages, newPackage]);
+
         await createNotification(
           `Nuevo paquete "${data.title}" creado`,
           "image",
@@ -149,37 +184,20 @@ const PackagesPage: React.FC = () => {
           `/packages`
         );
         showAlert("success", "Paquete creado con éxito", 4000);
-      } else if (data.publicId) {
-        const newPackage = await selectCloudinaryPackageImage(
-          validatedData.title,
-          validatedData.description,
-          validatedData.price,
-          data.publicId,
-          validatedData.isActive,
-          validatedData.showPrice,
-          validatedData.features
-        );
-        setPackages([...packages, newPackage]);
-        await createNotification(
-          `Nuevo paquete "${data.title}" creado con imagen de Cloudinary`,
-          "image",
-          "green",
-          `/packages`
-        );
-        showAlert("success", "Paquete creado con éxito", 4000);
-      } else {
-        throw new Error(
-          "El archivo o una imagen de Cloudinary es obligatorio para crear un paquete"
-        );
       }
+
       setModalOpen(false);
       setSelectedPackage(null);
     } catch (error: unknown) {
+      console.error("Error in handleSubmit:", error);
       const message =
         error instanceof ApiError
           ? error.message
+          : error instanceof Error
+          ? error.message
           : "No se pudo procesar el paquete";
       showAlert("error", message, 4000);
+
       if (
         error instanceof ApiError &&
         (error.status === 401 || error.status === 403)

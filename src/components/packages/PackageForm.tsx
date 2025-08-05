@@ -53,6 +53,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
     CloudinaryResource[]
   >([]);
   const [loadingCloudinary, setLoadingCloudinary] = useState(false);
+  const [showCloudinaryGrid, setShowCloudinaryGrid] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -165,8 +166,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
     }
   };
 
-  const handleCloudinarySelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const publicId = e.target.value;
+  const handleCloudinarySelect = (publicId: string) => {
     if (publicId) {
       const selectedImage = cloudinaryImages.find(
         (img) => img.public_id === publicId
@@ -178,6 +178,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
         file: undefined,
         imageUrl: selectedImage?.secure_url || "",
       });
+      setShowCloudinaryGrid(false);
     } else {
       setPreviewUrl(pkg?.imageUrl || null);
       setFormData({
@@ -194,6 +195,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
     const source = e.target.value as "local" | "cloudinary";
     setFormData({ ...formData, source, file: undefined, publicId: null });
     setPreviewUrl(pkg?.imageUrl || null);
+    setShowCloudinaryGrid(false);
     validateField("file", null);
     validateField("publicId", null);
   };
@@ -217,12 +219,51 @@ const PackageForm: React.FC<PackageFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = Object.keys(formData).every((key) => {
-      validateField(key, formData[key as keyof typeof formData]);
-      return !errors[key];
+
+    console.log("Form submission started with data:", {
+      id: formData.id,
+      hasFile: !!formData.file,
+      publicId: formData.publicId,
+      source: formData.source,
+      title: formData.title,
     });
 
-    if (!isValid) {
+    // Validar todos los campos
+    const fieldsToValidate = Object.keys(formData) as Array<
+      keyof typeof formData
+    >;
+    let hasErrors = false;
+
+    fieldsToValidate.forEach((key) => {
+      validateField(key, formData[key]);
+      if (errors[key]) {
+        hasErrors = true;
+      }
+    });
+
+    // Validación específica para imágenes
+    if (!pkg) {
+      // Para creación, necesitamos imagen obligatoriamente
+      if (
+        formData.source === "local" &&
+        (!formData.file || formData.file.size === 0)
+      ) {
+        setErrors((prev) => ({ ...prev, file: "Debe seleccionar una imagen" }));
+        hasErrors = true;
+      } else if (
+        formData.source === "cloudinary" &&
+        (!formData.publicId || formData.publicId.trim() === "")
+      ) {
+        setErrors((prev) => ({
+          ...prev,
+          publicId: "Debe seleccionar una imagen de Cloudinary",
+        }));
+        hasErrors = true;
+      }
+    }
+
+    if (hasErrors) {
+      console.log("Form has errors:", errors);
       showAlert(
         "error",
         "Por favor, corrige los errores en el formulario",
@@ -231,29 +272,40 @@ const PackageForm: React.FC<PackageFormProps> = ({
       return;
     }
 
+    if (isSubmitting) {
+      console.log("Form already submitting, ignoring...");
+      return;
+    }
+
     const submitData = {
-      ...formData,
+      id: formData.id,
+      title: formData.title,
+      description: formData.description,
       price: formData.price || 0,
       imageUrl: formData.imageUrl || "",
+      isActive: formData.isActive,
+      showPrice: formData.showPrice,
       features: formData.features.filter((f) => f.trim() !== ""),
+      file: formData.file,
+      publicId: formData.publicId || null,
     };
 
-    if (!isSubmitting) {
-      try {
-        if (pkg?.id) {
-          onSubmit(submitData);
-        } else if (formData.source === "local" && formData.file) {
-          onSubmit(submitData);
-        } else if (formData.source === "cloudinary" && formData.publicId) {
-          onSubmit({ ...submitData, file: undefined });
-        } else {
-          throw new Error("Debe seleccionar una imagen o archivo");
-        }
-      } catch {
-        showAlert("error", "Error al procesar el paquete", 4000);
-      }
+    console.log("Submitting data:", {
+      ...submitData,
+      file: submitData.file ? `File: ${submitData.file.name}` : "No file",
+    });
+
+    try {
+      onSubmit(submitData);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      showAlert("error", "Error al procesar el paquete", 4000);
     }
   };
+
+  const selectedCloudinaryImage = formData.publicId
+    ? cloudinaryImages.find((img) => img.public_id === formData.publicId)
+    : null;
 
   return (
     <form
@@ -297,6 +349,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
           </div>
         </div>
       )}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Fuente de la imagen
@@ -311,6 +364,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
           <option value="cloudinary">Seleccionar desde Cloudinary</option>
         </select>
       </div>
+
       {formData.source === "local" && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -328,30 +382,152 @@ const PackageForm: React.FC<PackageFormProps> = ({
           )}
         </div>
       )}
+
       {formData.source === "cloudinary" && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Seleccionar imagen de Cloudinary
-          </label>
-          <select
-            value={formData.publicId || ""}
-            onChange={handleCloudinarySelect}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-            disabled={isSubmitting || loadingCloudinary}
-          >
-            <option value="">Selecciona una imagen</option>
-            {cloudinaryImages.map((img) => (
-              <option key={img.public_id} value={img.public_id}>
-                {img.public_id} ({new Date(img.created_at).toLocaleDateString()}
-                )
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Seleccionar imagen de Cloudinary
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowCloudinaryGrid(!showCloudinaryGrid)}
+              className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors"
+              disabled={isSubmitting || loadingCloudinary}
+            >
+              {showCloudinaryGrid ? "Ocultar galería" : "Ver galería"}
+            </button>
+          </div>
+
+          {/* Imagen seleccionada actualmente */}
+          {selectedCloudinaryImage && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+              <div className="flex items-center gap-3">
+                <img
+                  src={selectedCloudinaryImage.secure_url}
+                  alt={selectedCloudinaryImage.public_id}
+                  className="w-16 h-16 object-cover rounded-lg border"
+                  onError={(e) =>
+                    (e.currentTarget.src = "/placeholder-image.jpg")
+                  }
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {selectedCloudinaryImage.public_id}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(
+                      selectedCloudinaryImage.created_at
+                    ).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {Math.round(selectedCloudinaryImage.bytes / 1024)} KB
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCloudinarySelect("")}
+                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                  disabled={isSubmitting}
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Galería de imágenes */}
+          {showCloudinaryGrid && (
+            <div className="mb-4">
+              {loadingCloudinary ? (
+                <div className="flex items-center justify-center py-8">
+                  <svg
+                    className="animate-spin h-8 w-8 text-indigo-600"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                    />
+                  </svg>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-60 overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                  {cloudinaryImages.map((img) => (
+                    <div
+                      key={img.public_id}
+                      className={`relative cursor-pointer group transition-all duration-200 ${
+                        formData.publicId === img.public_id
+                          ? "ring-2 ring-indigo-500 ring-offset-2"
+                          : "hover:ring-2 hover:ring-gray-300"
+                      }`}
+                      onClick={() => handleCloudinarySelect(img.public_id)}
+                    >
+                      <div className="aspect-square rounded-lg overflow-hidden bg-gray-200">
+                        <img
+                          src={img.secure_url}
+                          alt={img.public_id}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          onError={(e) =>
+                            (e.currentTarget.src = "/placeholder-image.jpg")
+                          }
+                        />
+                      </div>
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-lg" />
+                      {formData.publicId === img.public_id && (
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                          <svg
+                            className="w-4 h-4 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <p className="truncate">{img.public_id}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {errors.publicId && (
             <p className="mt-1 text-sm text-red-600">{errors.publicId}</p>
           )}
         </div>
       )}
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Título
@@ -370,6 +546,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
           <p className="mt-1 text-sm text-red-600">{errors.title}</p>
         )}
       </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Descripción
@@ -388,6 +565,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
           <p className="mt-1 text-sm text-red-600">{errors.description}</p>
         )}
       </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Precio
@@ -408,6 +586,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
           <p className="mt-1 text-sm text-red-600">{errors.price}</p>
         )}
       </div>
+
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2">
           <input
@@ -432,6 +611,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
           <span className="text-sm text-gray-700">Mostrar precio</span>
         </label>
       </div>
+
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Características
@@ -498,6 +678,7 @@ const PackageForm: React.FC<PackageFormProps> = ({
           Agregar característica
         </button>
       </div>
+
       <div className="flex justify-end gap-3 pt-4">
         <button
           type="button"
