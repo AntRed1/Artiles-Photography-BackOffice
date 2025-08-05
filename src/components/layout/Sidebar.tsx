@@ -13,11 +13,18 @@ import {
   FaFileAlt,
   FaEnvelope,
   FaCalendarAlt,
+  FaFileInvoiceDollar,
+  FaReceipt,
+  FaChartLine,
+  FaCertificate,
+  FaAngleDown,
+  FaAngleRight,
 } from "react-icons/fa";
 
 const Sidebar: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [facturacionExpanded, setFacturacionExpanded] = useState(false);
   const { logout, isAdmin } = useAuth();
   const { showAlert } = useAlert();
   const navigate = useNavigate();
@@ -49,6 +56,32 @@ const Sidebar: React.FC = () => {
       icon: <FaCalendarAlt />,
       label: "Gestión de Citas",
       adminOnly: true,
+    },
+    {
+      label: "Facturación Electrónica",
+      icon: <FaFileInvoiceDollar />,
+      expandable: true,
+      adminOnly: false,
+      children: [
+        {
+          path: "/invoices/create",
+          icon: <FaReceipt />,
+          label: "Crear e-CF",
+          adminOnly: false,
+        },
+        {
+          path: "/invoices/reports",
+          icon: <FaChartLine />,
+          label: "Reportes Fiscales",
+          adminOnly: true,
+        },
+        {
+          path: "/invoices/certificates",
+          icon: <FaCertificate />,
+          label: "Certificados Digitales",
+          adminOnly: true,
+        },
+      ],
     },
     {
       path: "/settings",
@@ -109,6 +142,58 @@ const Sidebar: React.FC = () => {
         <ul>
           {menuItems.map((item) => {
             if (item.adminOnly && !isAdmin) return null;
+
+            if (item.expandable) {
+              return (
+                <li key={item.label} className="mb-1">
+                  <button
+                    onClick={() => setFacturacionExpanded(!facturacionExpanded)}
+                    className={`flex items-center w-full p-3 rounded-lg ${
+                      collapsed ? "justify-center" : "justify-between"
+                    } hover:bg-indigo-700 transition-colors`}
+                  >
+                    <div className="flex items-center">
+                      <div className="w-5 h-5">{item.icon}</div>
+                      {!collapsed && <span className="ml-3">{item.label}</span>}
+                    </div>
+                    {!collapsed &&
+                      (facturacionExpanded ? (
+                        <FaAngleDown className="w-4 h-4" />
+                      ) : (
+                        <FaAngleRight className="w-4 h-4" />
+                      ))}
+                  </button>
+                  {facturacionExpanded && !collapsed && (
+                    <ul className="pl-10 mt-1 space-y-1">
+                      {item.children?.map((child) => {
+                        if (child.adminOnly && !isAdmin) return null;
+                        if (!child.path) return null;
+                        return (
+                          <li key={child.path}>
+                            <NavLink
+                              to={child.path}
+                              className={({ isActive }) =>
+                                `flex items-center w-full p-2 rounded-lg text-sm ${
+                                  isActive
+                                    ? "bg-indigo-700"
+                                    : "hover:bg-indigo-700"
+                                } transition-colors`
+                              }
+                            >
+                              <div className="w-4 h-4">{child.icon}</div>
+                              <span className="ml-2">{child.label}</span>
+                            </NavLink>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              );
+            }
+
+            if (!item.path) return null;
+
             return (
               <li key={item.path} className="mb-1">
                 <NavLink
