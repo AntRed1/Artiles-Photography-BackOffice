@@ -2,7 +2,7 @@ import api from "./api";
 import { ApiError } from "./api";
 
 export interface CloudinaryResource {
-  [x: string]: number;
+  bytes: number;
   public_id: string;
   created_at: string;
   secure_url?: string;
