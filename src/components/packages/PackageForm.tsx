@@ -220,14 +220,6 @@ const PackageForm: React.FC<PackageFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log("Form submission started with data:", {
-      id: formData.id,
-      hasFile: !!formData.file,
-      publicId: formData.publicId,
-      source: formData.source,
-      title: formData.title,
-    });
-
     // Validar todos los campos
     const fieldsToValidate = Object.keys(formData) as Array<
       keyof typeof formData
@@ -263,17 +255,10 @@ const PackageForm: React.FC<PackageFormProps> = ({
     }
 
     if (hasErrors) {
-      console.log("Form has errors:", errors);
-      showAlert(
-        "error",
-        "Por favor, corrige los errores en el formulario",
-        4000
-      );
       return;
     }
 
     if (isSubmitting) {
-      console.log("Form already submitting, ignoring...");
       return;
     }
 
@@ -289,11 +274,6 @@ const PackageForm: React.FC<PackageFormProps> = ({
       file: formData.file,
       publicId: formData.publicId || null,
     };
-
-    console.log("Submitting data:", {
-      ...submitData,
-      file: submitData.file ? `File: ${submitData.file.name}` : "No file",
-    });
 
     try {
       onSubmit(submitData);

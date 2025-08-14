@@ -64,12 +64,10 @@ const ProtectedRoute: React.FC<{
   }
 
   if (!isAuthenticated) {
-    console.log("No autenticado, redirigiendo a /login");
     return <Navigate to="/login" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    console.log("No es administrador, redirigiendo a /unauthorized");
     return <Navigate to="/unauthorized" replace />;
   }
 

@@ -139,8 +139,6 @@ export const selectCloudinaryImage = async (data: {
       body
     );
 
-    console.log("[selectCloudinaryImage] Respuesta del backend:", response);
-
     return mapResponseToGalleryItem(response, type);
   } catch (error) {
     throw handleApiError(error, "Error al seleccionar imagen de Cloudinary");
@@ -180,11 +178,6 @@ export const updateImage = async (
       const uploadEndpoint =
         data.type === "gallery" ? ENDPOINTS.gallery.uploadById(id) : endpoint;
 
-      console.log("[updateImage] Enviando solicitud con archivo:", {
-        id,
-        formData: Object.fromEntries(formData),
-      });
-
       response = await api<CarouselResponse | GalleryResponse>(
         uploadEndpoint,
         "PUT",
@@ -206,19 +199,11 @@ export const updateImage = async (
         updateData.publicId = data.publicId;
       }
 
-      console.log("[updateImage] Enviando solicitud de metadatos:", {
-        id,
-        endpoint,
-        updateData,
-      });
-
       response = await api<CarouselResponse | GalleryResponse>(
         endpoint,
         "PUT",
         updateData
       );
-
-      console.log("[updateImage] Respuesta del backend:", response);
     }
 
     return mapResponseToGalleryItem(response, data.type);

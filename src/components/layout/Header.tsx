@@ -38,7 +38,6 @@ const Header: React.FC = () => {
     try {
       const data = await api<Notification[]>("/analytics/notifications", "GET");
       setNotifications(data);
-      console.log("Notifications fetched:", data);
     } catch (error: any) {
       console.error("Error fetching notifications:", error);
       const message =
