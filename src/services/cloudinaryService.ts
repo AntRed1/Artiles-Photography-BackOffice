@@ -32,26 +32,39 @@ export interface CloudinaryImagesResponse {
 
 export const fetchCloudinaryImages = async (
   page: number = 1,
-  size: number = 20
+  size: number = 20,
+  nextCursor?: string
 ): Promise<CloudinaryImagesResponse> => {
   try {
+    const params: { page?: number; size: number; next_cursor?: string } = {
+      size,
+    };
+    if (nextCursor) {
+      params.next_cursor = nextCursor;
+    } else {
+      params.page = page;
+    }
     const response = await api<CloudinaryImagesResponse>(
       "/cloudinary-metrics/images",
       "GET",
       undefined,
-      { page, size }
+      params
     );
     console.log(
-      `[fetchCloudinaryImages] Success: Fetched images for page ${page}, size ${size}, totalCount: ${response.totalCount}`
+      `[fetchCloudinaryImages] Success: Fetched images for page ${page}, size ${size}, nextCursor: ${
+        nextCursor || "none"
+      }, totalCount: ${response.totalCount}`
     );
     return response;
   } catch (error: unknown) {
     console.error(
-      `[fetchCloudinaryImages] Error fetching images for page ${page}, size ${size}:`,
+      `[fetchCloudinaryImages] Error fetching images for page ${page}, size ${size}, nextCursor: ${
+        nextCursor || "none"
+      }:`,
       {
         error,
         endpoint: `/cloudinary-metrics/images`,
-        params: { page, size },
+        params: { page, size, next_cursor: nextCursor },
       }
     );
     throw new ApiError(
@@ -88,7 +101,6 @@ export const deleteCloudinaryImage = async (
 ): Promise<void> => {
   console.log(`Intentando eliminar imagen con publicId: ${publicId}`);
   try {
-    // Forzar solicitud sin Authorization
     await api(
       `/cloudinary-metrics/${encodeURIComponent(publicId)}`,
       "DELETE",

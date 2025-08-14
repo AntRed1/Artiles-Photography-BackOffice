@@ -16,9 +16,26 @@ interface GalleryResponse {
   uploadedAt: string;
 }
 
+// Configuración centralizada de endpoints
+const ENDPOINTS = {
+  carousel: {
+    base: "/carousel",
+    upload: "/carousel/upload",
+    cloudinary: "/carousel/cloudinary",
+    byId: (id: number) => `/carousel/${id}`,
+  },
+  gallery: {
+    base: "/gallery",
+    upload: "/gallery/upload",
+    cloudinary: "/gallery/cloudinary",
+    byId: (id: number) => `/gallery/${id}`,
+    uploadById: (id: number) => `/gallery/${id}/upload`,
+  },
+} as const;
+
 export const getCarouselImages = async (): Promise<GalleryItem[]> => {
   try {
-    const response = await api<CarouselResponse[]>("/carousel");
+    const response = await api<CarouselResponse[]>(ENDPOINTS.carousel.base);
     return response.map((item) => ({
       id: item.id,
       url: item.url,
@@ -33,7 +50,7 @@ export const getCarouselImages = async (): Promise<GalleryItem[]> => {
 
 export const getGalleryImages = async (): Promise<GalleryItem[]> => {
   try {
-    const response = await api<GalleryResponse[]>("/gallery");
+    const response = await api<GalleryResponse[]>(ENDPOINTS.gallery.base);
     return response.map((item) => ({
       id: item.id,
       imageUrl: item.imageUrl,
@@ -65,51 +82,29 @@ export const uploadImage = async (data: {
     const { type, description, file, title } = data;
     const formData = new FormData();
     formData.append("file", file);
+
     if (type === "carousel" && title) {
       formData.append("title", title);
     }
     formData.append("description", description);
+    // Normalizar type para el backend
+    const normalizedType = type === "carousel" ? "CAROUSEL" : "GALLERY";
+    formData.append("type", normalizedType);
+
     const endpoint =
       type === "carousel"
-        ? "/carousel/upload"
-        : "/gallery/admin/gallery/upload";
+        ? ENDPOINTS.carousel.upload
+        : ENDPOINTS.gallery.upload;
+
     const response = await api<CarouselResponse | GalleryResponse>(
       endpoint,
       "POST",
       formData
     );
-    if (type === "carousel") {
-      const carouselResponse = response as CarouselResponse;
-      return {
-        id: carouselResponse.id,
-        url: carouselResponse.url,
-        title: carouselResponse.title,
-        description: carouselResponse.description,
-        type: "carousel",
-      };
-    } else {
-      const galleryResponse = response as GalleryResponse;
-      return {
-        id: galleryResponse.id,
-        imageUrl: galleryResponse.imageUrl,
-        description: galleryResponse.description,
-        uploadedAt: galleryResponse.uploadedAt,
-        type: "gallery",
-      };
-    }
+
+    return mapResponseToGalleryItem(response, type);
   } catch (error) {
-    if (error instanceof ApiError) {
-      if (error.status === 403) {
-        throw new ApiError(
-          "No autorizado: Se requiere rol de administrador",
-          403
-        );
-      }
-      if (error.status === 400) {
-        throw new ApiError(error.message, 400);
-      }
-    }
-    throw new ApiError("Error al subir imagen", 500);
+    throw handleApiError(error, "Error al subir imagen");
   }
 };
 
@@ -117,52 +112,38 @@ export const selectCloudinaryImage = async (data: {
   type: "carousel" | "gallery";
   description: string;
   publicId: string;
+  imageUrl: string;
   title?: string;
 }): Promise<GalleryItem> => {
   try {
-    const { type, description, publicId, title } = data;
-    const body = { publicId, description, title };
+    const { type, description, publicId, imageUrl, title } = data;
+    // Normalizar type para el backend
+    const normalizedType = type === "carousel" ? "CAROUSEL" : "GALLERY";
+
+    const body = {
+      publicId,
+      imageUrl,
+      description,
+      title,
+      type: normalizedType,
+    };
+
     const endpoint =
       type === "carousel"
-        ? "/carousel/cloudinary"
-        : "/gallery/admin/gallery/cloudinary";
+        ? ENDPOINTS.carousel.cloudinary
+        : ENDPOINTS.gallery.cloudinary;
+
     const response = await api<CarouselResponse | GalleryResponse>(
       endpoint,
       "POST",
       body
     );
-    if (type === "carousel") {
-      const carouselResponse = response as CarouselResponse;
-      return {
-        id: carouselResponse.id,
-        url: carouselResponse.url,
-        title: carouselResponse.title,
-        description: carouselResponse.description,
-        type: "carousel",
-      };
-    } else {
-      const galleryResponse = response as GalleryResponse;
-      return {
-        id: galleryResponse.id,
-        imageUrl: galleryResponse.imageUrl,
-        description: galleryResponse.description,
-        uploadedAt: galleryResponse.uploadedAt,
-        type: "gallery",
-      };
-    }
+
+    console.log("[selectCloudinaryImage] Respuesta del backend:", response);
+
+    return mapResponseToGalleryItem(response, type);
   } catch (error) {
-    if (error instanceof ApiError) {
-      if (error.status === 403) {
-        throw new ApiError(
-          "No autorizado: Se requiere rol de administrador",
-          403
-        );
-      }
-      if (error.status === 400) {
-        throw new ApiError(error.message, 400);
-      }
-    }
-    throw new ApiError("Error al seleccionar imagen de Cloudinary", 500);
+    throw handleApiError(error, "Error al seleccionar imagen de Cloudinary");
   }
 };
 
@@ -174,73 +155,75 @@ export const updateImage = async (
     description: string;
     type: "carousel" | "gallery";
     publicId?: string;
+    imageUrl?: string;
   }
 ): Promise<GalleryItem> => {
   try {
     const endpoint =
       data.type === "carousel"
-        ? `/carousel/${id}`
-        : `/gallery/admin/gallery/${id}`;
+        ? ENDPOINTS.carousel.byId(id)
+        : ENDPOINTS.gallery.byId(id);
+
     let response: CarouselResponse | GalleryResponse;
+
     if (data.file) {
+      // Actualización con archivo
       const formData = new FormData();
       formData.append("file", data.file);
       if (data.title) formData.append("title", data.title);
       formData.append("description", data.description);
+      // Normalizar type para el backend
+      const normalizedType = data.type === "carousel" ? "CAROUSEL" : "GALLERY";
+      formData.append("type", normalizedType);
+
+      // Para gallery, usar endpoint específico para uploads
+      const uploadEndpoint =
+        data.type === "gallery" ? ENDPOINTS.gallery.uploadById(id) : endpoint;
+
+      console.log("[updateImage] Enviando solicitud con archivo:", {
+        id,
+        formData: Object.fromEntries(formData),
+      });
+
       response = await api<CarouselResponse | GalleryResponse>(
-        endpoint,
+        uploadEndpoint,
         "PUT",
         formData
       );
-    } else if (data.publicId) {
+    } else {
+      // Actualización de metadatos o Cloudinary
+      const normalizedType = data.type === "carousel" ? "CAROUSEL" : "GALLERY";
+      const updateData: Record<string, string | undefined> = {
+        title: data.title,
+        description: data.description,
+        type: normalizedType,
+      };
+
+      if (data.publicId && data.imageUrl) {
+        updateData.publicId = data.publicId;
+        updateData.imageUrl = data.imageUrl;
+      } else if (data.publicId) {
+        updateData.publicId = data.publicId;
+      }
+
+      console.log("[updateImage] Enviando solicitud de metadatos:", {
+        id,
+        endpoint,
+        updateData,
+      });
+
       response = await api<CarouselResponse | GalleryResponse>(
         endpoint,
         "PUT",
-        {
-          title: data.title,
-          description: data.description,
-          publicId: data.publicId,
-        }
+        updateData
       );
-    } else {
-      response = await api<CarouselResponse | GalleryResponse>(
-        endpoint,
-        "PUT",
-        { title: data.title, description: data.description }
-      );
+
+      console.log("[updateImage] Respuesta del backend:", response);
     }
-    if (data.type === "carousel") {
-      const carouselResponse = response as CarouselResponse;
-      return {
-        id: carouselResponse.id,
-        url: carouselResponse.url,
-        title: carouselResponse.title,
-        description: carouselResponse.description,
-        type: "carousel",
-      };
-    } else {
-      const galleryResponse = response as GalleryResponse;
-      return {
-        id: galleryResponse.id,
-        imageUrl: galleryResponse.imageUrl,
-        description: galleryResponse.description,
-        uploadedAt: galleryResponse.uploadedAt,
-        type: "gallery",
-      };
-    }
+
+    return mapResponseToGalleryItem(response, data.type);
   } catch (error) {
-    if (error instanceof ApiError) {
-      if (error.status === 403) {
-        throw new ApiError(
-          "No autorizado: Se requiere rol de administrador",
-          403
-        );
-      }
-      if (error.status === 400) {
-        throw new ApiError(error.message, 400);
-      }
-    }
-    throw new ApiError("Error al actualizar imagen", 500);
+    throw handleApiError(error, "Error al actualizar imagen");
   }
 };
 
@@ -250,20 +233,57 @@ export const deleteImage = async (
 ): Promise<void> => {
   try {
     const endpoint =
-      type === "carousel" ? `/carousel/${id}` : `/gallery/admin/gallery/${id}`;
+      type === "carousel"
+        ? ENDPOINTS.carousel.byId(id)
+        : ENDPOINTS.gallery.byId(id);
+
     await api<void>(endpoint, "DELETE");
   } catch (error) {
-    if (error instanceof ApiError) {
-      if (error.status === 403) {
-        throw new ApiError(
+    throw handleApiError(error, "Error al eliminar imagen");
+  }
+};
+
+// Funciones utilitarias para reducir duplicación de código
+const mapResponseToGalleryItem = (
+  response: CarouselResponse | GalleryResponse,
+  type: "carousel" | "gallery"
+): GalleryItem => {
+  if (type === "carousel") {
+    const carouselResponse = response as CarouselResponse;
+    return {
+      id: carouselResponse.id,
+      url: carouselResponse.url,
+      title: carouselResponse.title,
+      description: carouselResponse.description,
+      type: "carousel",
+    };
+  } else {
+    const galleryResponse = response as GalleryResponse;
+    return {
+      id: galleryResponse.id,
+      imageUrl: galleryResponse.imageUrl,
+      description: galleryResponse.description,
+      uploadedAt: galleryResponse.uploadedAt,
+      type: "gallery",
+    };
+  }
+};
+
+const handleApiError = (error: unknown, defaultMessage: string): ApiError => {
+  if (error instanceof ApiError) {
+    switch (error.status) {
+      case 403:
+        return new ApiError(
           "No autorizado: Se requiere rol de administrador",
           403
         );
-      }
-      if (error.status === 400) {
-        throw new ApiError(error.message, 400);
-      }
+      case 400:
+        return new ApiError(error.message, 400);
+      case 404:
+        return new ApiError("Recurso no encontrado", 404);
+      default:
+        return error;
     }
-    throw new ApiError("Error al eliminar imagen", 500);
   }
+  return new ApiError(defaultMessage, 500);
 };
