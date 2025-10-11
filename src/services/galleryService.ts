@@ -21,7 +21,7 @@ const ENDPOINTS = {
   carousel: {
     base: "/carousel",
     upload: "/carousel/upload",
-    cloudinary: "/carousel/cloudinary",
+    cloudinary: "/carousel/select",
     byId: (id: number) => `/carousel/${id}`,
   },
   gallery: {
